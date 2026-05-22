@@ -9,13 +9,9 @@ st.title("Human Capital Risk Lab")
 st.subheader("Upload-Based Workforce Risk Analytics Prototype")
 
 st.write(
-    "This version allows a company-style workforce CSV to be uploaded and analyzed. "
-    "It estimates expected attrition exposure using predicted risk, annual wage, and a replacement-cost multiplier."
+    "Upload a workforce dataset to estimate attrition risk, expected turnover exposure, "
+    "and stressed workforce cost under different labor-market scenarios."
 )
-
-# =====================
-# File upload
-# =====================
 
 uploaded_file = st.file_uploader(
     "Upload Workforce Dataset (CSV)",
@@ -30,32 +26,64 @@ else:
     st.info("No custom file uploaded. Using default HCRL demo dataset.")
 
 # =====================
-# Column checks
+# Auto-detect IBM HR dataset
+# =====================
+
+if "Attrition" in df.columns and "MonthlyIncome" in df.columns:
+    st.info("IBM HR Attrition dataset detected. Variables were automatically mapped.")
+
+    df["predicted_risk"] = np.where(
+        df["Attrition"].astype(str).str.lower() == "yes",
+        0.75,
+        0.25
+    )
+
+    df["annual_wage_proxy"] = df["MonthlyIncome"] * 12
+
+    if "Department" in df.columns:
+        df["department"] = df["Department"]
+
+    if "JobRole" in df.columns:
+        df["job_role"] = df["JobRole"]
+
+    if "EmployeeNumber" in df.columns:
+        df["employee_id"] = df["EmployeeNumber"]
+
+# =====================
+# Required columns
 # =====================
 
 required_cols = ["predicted_risk", "annual_wage_proxy"]
-
 missing_cols = [col for col in required_cols if col not in df.columns]
 
 if missing_cols:
     st.error(f"Missing required columns: {missing_cols}")
+    st.write(
+        "Your dataset must include either `predicted_risk` and `annual_wage_proxy`, "
+        "or IBM-style columns `Attrition` and `MonthlyIncome`."
+    )
     st.stop()
 
 # =====================
-# Optional column handling
+# Optional segment columns
 # =====================
 
 if "industry_name" not in df.columns:
     if "industry" in df.columns:
         df["industry_name"] = df["industry"].astype(str)
+    elif "Department" in df.columns:
+        df["industry_name"] = df["Department"]
     else:
         df["industry_name"] = "Unknown"
 
 if "department" not in df.columns:
-    df["department"] = df["industry_name"]
+    if "Department" in df.columns:
+        df["department"] = df["Department"]
+    else:
+        df["department"] = df["industry_name"]
 
 # =====================
-# Sidebar controls
+# Sidebar
 # =====================
 
 st.sidebar.header("Scenario Controls")
@@ -86,31 +114,15 @@ df["predicted_risk"] = pd.to_numeric(df["predicted_risk"], errors="coerce")
 df["annual_wage_proxy"] = pd.to_numeric(df["annual_wage_proxy"], errors="coerce")
 
 df = df.dropna(subset=["predicted_risk", "annual_wage_proxy"]).copy()
-
 df["predicted_risk"] = df["predicted_risk"].clip(0, 1)
 
-df["stressed_risk"] = np.minimum(
-    1,
-    df["predicted_risk"] * stress
-)
-
-df["replacement_cost"] = (
-    lambda_multiplier *
-    df["annual_wage_proxy"]
-)
-
-df["baseline_expected_cost"] = (
-    df["predicted_risk"] *
-    df["replacement_cost"]
-)
-
-df["stressed_expected_cost"] = (
-    df["stressed_risk"] *
-    df["replacement_cost"]
-)
+df["stressed_risk"] = np.minimum(1, df["predicted_risk"] * stress)
+df["replacement_cost"] = lambda_multiplier * df["annual_wage_proxy"]
+df["baseline_expected_cost"] = df["predicted_risk"] * df["replacement_cost"]
+df["stressed_expected_cost"] = df["stressed_risk"] * df["replacement_cost"]
 
 # =====================
-# Dashboard header
+# Header
 # =====================
 
 st.header(f"{company_name} Workforce Risk Dashboard")
@@ -125,7 +137,7 @@ col4.metric("Avg Stressed Exposure", f"${df['stressed_expected_cost'].mean():,.0
 st.divider()
 
 # =====================
-# Executive summary
+# Executive Summary
 # =====================
 
 baseline_cost = df["baseline_expected_cost"].mean()
@@ -135,7 +147,7 @@ increase = stressed_cost - baseline_cost
 st.header("Executive Summary")
 
 st.write(
-    f"For **{company_name}**, average expected attrition exposure rises from "
+    f"For {company_name}, average expected attrition exposure rises from "
     f"${baseline_cost:,.0f} to ${stressed_cost:,.0f} under the selected stress scenario. "
     f"This represents an increase of ${increase:,.0f} per employee observation."
 )
@@ -148,14 +160,28 @@ st.info(
 st.divider()
 
 # =====================
-# Department / segment summary
+# Segment selection
 # =====================
 
 st.header("Workforce Segment Risk Exposure")
 
+possible_segments = [
+    col for col in [
+        "department",
+        "industry_name",
+        "Department",
+        "JobRole",
+        "job_role",
+        "EducationField",
+        "BusinessTravel",
+        "MaritalStatus"
+    ]
+    if col in df.columns
+]
+
 segment_col = st.selectbox(
     "Choose segmentation variable",
-    [col for col in ["department", "industry_name", "industry", "occupation"] if col in df.columns]
+    possible_segments
 )
 
 segment_summary = (
@@ -168,7 +194,6 @@ segment_summary = (
         n_workers=(segment_col, "count")
     )
     .sort_values("avg_stressed_cost", ascending=False)
-    .head(10)
 )
 
 display_summary = segment_summary.copy()
@@ -179,8 +204,10 @@ display_summary["avg_stressed_cost"] = display_summary["avg_stressed_cost"].map(
 
 st.dataframe(display_summary, use_container_width=True)
 
+top_segments = segment_summary.head(10)
+
 fig, ax = plt.subplots(figsize=(11, 5))
-ax.bar(segment_summary.index.astype(str), segment_summary["avg_stressed_cost"])
+ax.bar(top_segments.index.astype(str), top_segments["avg_stressed_cost"])
 ax.set_xlabel(segment_col)
 ax.set_ylabel("Average Stressed Expected Cost")
 ax.set_title("Top Workforce Segments by Stressed Attrition Exposure")
@@ -270,13 +297,16 @@ with st.expander("Methodology"):
         This upload-based prototype estimates workforce attrition exposure using three core inputs:
         predicted attrition risk, annual wage, and a replacement-cost multiplier.
 
+        For the IBM HR Attrition dataset, the prototype maps:
+        - MonthlyIncome to annual wage by multiplying by 12
+        - Attrition to a simplified risk proxy
+
         Expected Attrition Cost = Predicted Risk × Replacement Cost
 
         Replacement Cost = Annual Wage × Replacement Cost Multiplier
 
         The stress scenario increases predicted attrition probabilities by the selected multiplier,
-        capped at 100%. This allows the dashboard to estimate workforce exposure under adverse
-        labor-market conditions.
+        capped at 100%.
 
         This MVP is intended for analytical demonstration and does not make individual HR,
         hiring, firing, or performance decisions.
