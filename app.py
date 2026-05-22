@@ -81,8 +81,15 @@ increase = stressed_cost - baseline_cost
 
 st.write(
     f"Under the selected stress scenario, average expected attrition exposure rises from "
-    f"\${baseline_cost:,.0f} to \${stressed_cost:,.0f}, "
-    f"an increase of \${increase:,.0f} per worker observation."
+    f"${baseline_cost:,.0f} to ${stressed_cost:,.0f}, "
+    f"an increase of ${increase:,.0f} per worker observation."
+)
+
+st.info(
+    f"""
+    Under the selected labor stress scenario, average workforce risk increases
+    from {df['predicted_risk'].mean():.1%} to {df['stressed_risk'].mean():.1%}.
+    """
 )
 
 st.divider()
@@ -111,7 +118,25 @@ industry_display["avg_expected_cost"] = industry_display["avg_expected_cost"].ma
 industry_display["avg_stressed_cost"] = industry_display["avg_stressed_cost"].map(lambda x: f"${x:,.0f}")
 
 st.header("Top Industries by Workforce Risk Exposure")
-st.dataframe(industry_display, use_container_width=True)
+
+def risk_color(val):
+    try:
+        num = float(str(val).replace("%", "")) / 100
+        if num >= 0.7:
+            return "background-color: #ffcccc"
+        elif num >= 0.5:
+            return "background-color: #fff2cc"
+        else:
+            return "background-color: #d9ead3"
+    except:
+        return ""
+
+styled_table = industry_display.style.map(
+    risk_color,
+    subset=["avg_risk", "avg_stressed_risk"]
+)
+
+st.dataframe(styled_table, use_container_width=True)
 
 fig, ax = plt.subplots(figsize=(11, 5))
 ax.bar(industry_summary.index.astype(str), industry_summary["avg_stressed_cost"])
@@ -120,6 +145,44 @@ ax.set_ylabel("Average Stressed Expected Cost")
 ax.set_title("Top Industries by Workforce Risk Exposure")
 plt.xticks(rotation=35, ha="right")
 st.pyplot(fig)
+
+st.divider()
+
+# =====================
+# Risk segmentation
+# =====================
+
+st.header("Risk Segmentation")
+
+df["risk_bucket"] = pd.cut(
+    df["predicted_risk"],
+    bins=[0, 0.3, 0.6, 1],
+    labels=["Low Risk", "Medium Risk", "High Risk"]
+)
+
+bucket_counts = df["risk_bucket"].value_counts().sort_index()
+
+fig2, ax2 = plt.subplots(figsize=(6, 6))
+ax2.pie(bucket_counts, labels=bucket_counts.index, autopct="%1.1f%%")
+ax2.set_title("Workforce Risk Segmentation")
+st.pyplot(fig2)
+
+st.divider()
+
+# =====================
+# Key takeaways
+# =====================
+
+st.header("Key Business Takeaways")
+
+top_three = industry_summary.index[:3].tolist()
+
+st.markdown(f"""
+- **{top_three[0]}**, **{top_three[1]}**, and **{top_three[2]}** currently show the highest stressed workforce cost exposure.
+- Expected attrition cost rises under the selected labor-market stress scenario.
+- Workforce instability can be quantified using probabilistic risk scores rather than only historical turnover rates.
+- HCRL translates attrition risk into an economic exposure metric that is easier for business decision-makers to interpret.
+""")
 
 st.divider()
 
@@ -187,7 +250,7 @@ with st.expander("Methodology"):
         """
     )
 
+st.markdown("---")
 st.caption(
-    "MVP note: Industry labels are manually mapped for selected top industry codes. "
-    "Future versions should use the official CPS/IPUMS industry label dictionary."
+    "Human Capital Risk Lab (HCRL) | Quantitative Workforce Risk Analytics MVP | Built using CPS/IPUMS labor data"
 )
