@@ -5,15 +5,6 @@ import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="HCRL Dashboard", layout="wide")
 
-uploaded_file = st.file_uploader(
-    "Upload Workforce Dataset (CSV)",
-    type=["csv"]
-)
-
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
-else:
-    df = pd.read_csv("hcrl_model_dataset_v1.csv")
     
 # =====================
 # Load data
