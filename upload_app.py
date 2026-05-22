@@ -148,8 +148,8 @@ st.header("Executive Summary")
 
 st.write(
     f"For {company_name}, average expected attrition exposure rises from "
-    f"${baseline_cost:,.0f} to ${stressed_cost:,.0f} under the selected stress scenario. "
-    f"This represents an increase of ${increase:,.0f} per employee observation."
+    f"\${baseline_cost:,.0f} to \${stressed_cost:,.0f} under the selected stress scenario. "
+    f"This represents an increase of \${increase:,.0f} per employee observation."
 )
 
 st.info(
