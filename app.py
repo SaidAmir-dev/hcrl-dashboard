@@ -68,11 +68,11 @@ baseline_cost = df["baseline_expected_cost"].mean()
 stressed_cost = df["stressed_expected_cost"].mean()
 increase = stressed_cost - baseline_cost
 
-st.write(
+st.markdown(
     f"""
 Under the selected stress scenario, average expected attrition exposure rises from
-**${baseline_cost:,.0f}** to **${stressed_cost:,.0f}**,
-an increase of **${increase:,.0f}** per worker observation.
+**\\${baseline_cost:,.0f}** to **\\${stressed_cost:,.0f}**,
+an increase of **\\${increase:,.0f}** per worker observation.
 """
 )
 
