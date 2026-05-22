@@ -5,14 +5,9 @@ import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="HCRL Dashboard", layout="wide")
 
-st.title("Human Capital Risk Lab")
-st.subheader("Quantitative Workforce Risk Analytics")
-
-st.write(
-    "This dashboard estimates workforce attrition risk and expected cost exposure "
-    "under baseline and stressed labor-market scenarios. The current MVP uses public CPS data "
-    "and is intended for analytical demonstration, not HR decision-making."
-)
+# =====================
+# Load data
+# =====================
 
 df = pd.read_csv("hcrl_model_dataset_v1.csv")
 
@@ -31,28 +26,40 @@ industry_labels = {
 
 df["industry_name"] = df["industry"].map(industry_labels).fillna(df["industry"].astype(str))
 
+# =====================
+# Sidebar
+# =====================
+
 st.sidebar.header("Scenario Controls")
 
-stress = st.sidebar.slider(
-    "Stress Multiplier",
-    min_value=1.0,
-    max_value=2.0,
-    value=1.2,
-    step=0.05
-)
+stress = st.sidebar.slider("Stress Multiplier", 1.0, 2.0, 1.2, 0.05)
+lambda_multiplier = st.sidebar.slider("Replacement Cost Multiplier", 0.1, 1.5, 0.5, 0.1)
 
-lambda_multiplier = st.sidebar.slider(
-    "Replacement Cost Multiplier",
-    min_value=0.1,
-    max_value=1.5,
-    value=0.5,
-    step=0.1
-)
+# =====================
+# Calculations
+# =====================
 
 df["stressed_risk"] = np.minimum(1, df["predicted_risk"] * stress)
 df["replacement_cost"] = lambda_multiplier * df["annual_wage_proxy"]
 df["baseline_expected_cost"] = df["predicted_risk"] * df["replacement_cost"]
 df["stressed_expected_cost"] = df["stressed_risk"] * df["replacement_cost"]
+
+# =====================
+# Header
+# =====================
+
+st.title("Human Capital Risk Lab")
+st.subheader("Quantitative Workforce Risk Analytics")
+
+st.write(
+    "This dashboard estimates workforce attrition risk and expected cost exposure "
+    "under baseline and stressed labor-market scenarios. The current MVP uses public CPS data "
+    "and is intended for analytical demonstration, not HR decision-making."
+)
+
+# =====================
+# KPI metrics
+# =====================
 
 col1, col2, col3 = st.columns(3)
 
@@ -62,6 +69,10 @@ col3.metric("Average Stressed Expected Cost", f"${df['stressed_expected_cost'].m
 
 st.divider()
 
+# =====================
+# Executive Summary
+# =====================
+
 st.header("Executive Summary")
 
 baseline_cost = df["baseline_expected_cost"].mean()
@@ -70,11 +81,15 @@ increase = stressed_cost - baseline_cost
 
 st.write(
     f"Under the selected stress scenario, average expected attrition exposure rises from "
-    f"\${baseline_cost:,.0f} to \${stressed_cost:,.0f}, "
-    f"an increase of \${increase:,.0f} per worker observation."
+    f"${baseline_cost:,.0f} to ${stressed_cost:,.0f}, "
+    f"an increase of ${increase:,.0f} per worker observation."
 )
 
 st.divider()
+
+# =====================
+# Industry summary
+# =====================
 
 industry_summary = (
     df.groupby("industry_name")
@@ -105,6 +120,72 @@ ax.set_ylabel("Average Stressed Expected Cost")
 ax.set_title("Top Industries by Workforce Risk Exposure")
 plt.xticks(rotation=35, ha="right")
 st.pyplot(fig)
+
+st.divider()
+
+# =====================
+# Industry drill-down
+# =====================
+
+st.header("Industry Drill-Down")
+
+selected_industry = st.selectbox(
+    "Select an industry",
+    industry_summary.index.tolist()
+)
+
+selected_data = df[df["industry_name"] == selected_industry]
+
+d1, d2, d3, d4 = st.columns(4)
+
+d1.metric("Workers", f"{len(selected_data):,}")
+d2.metric("Avg Risk", f"{selected_data['predicted_risk'].mean():.1%}")
+d3.metric("Avg Stressed Risk", f"{selected_data['stressed_risk'].mean():.1%}")
+d4.metric("Avg Stressed Cost", f"${selected_data['stressed_expected_cost'].mean():,.0f}")
+
+st.write(
+    f"{selected_industry} shows an estimated baseline attrition risk of "
+    f"{selected_data['predicted_risk'].mean():.1%}. Under the selected stress scenario, "
+    f"the average expected attrition exposure is "
+    f"${selected_data['stressed_expected_cost'].mean():,.0f} per worker observation."
+)
+
+# =====================
+# Download report
+# =====================
+
+st.download_button(
+    label="Download Industry Risk Report",
+    data=industry_summary.to_csv().encode("utf-8"),
+    file_name="hcrl_industry_risk_report.csv",
+    mime="text/csv"
+)
+
+st.divider()
+
+# =====================
+# Methodology
+# =====================
+
+with st.expander("Methodology"):
+    st.write(
+        """
+        HCRL estimates workforce attrition risk using a logistic regression model trained on
+        longitudinal CPS/IPUMS labor-market data. The dependent variable is a separation proxy
+        indicating whether a worker was employed in the first observation period and not employed
+        in the linked follow-up period.
+
+        Predicted attrition risk is translated into expected economic exposure using:
+
+        Expected Attrition Cost = Predicted Risk × Replacement Cost
+
+        Replacement cost is approximated as a multiplier of annual wage. The stress scenario
+        increases predicted attrition probabilities by the selected stress multiplier, capped at 100%.
+
+        This MVP is designed for analytical demonstration and does not provide individual HR
+        recommendations or employment decisions.
+        """
+    )
 
 st.caption(
     "MVP note: Industry labels are manually mapped for selected top industry codes. "
