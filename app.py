@@ -81,8 +81,8 @@ increase = stressed_cost - baseline_cost
 
 st.write(
     f"Under the selected stress scenario, average expected attrition exposure rises from "
-    f"${baseline_cost:,.0f} to ${stressed_cost:,.0f}, "
-    f"an increase of ${increase:,.0f} per worker observation."
+    f"\${baseline_cost:,.0f} to \${stressed_cost:,.0f}, "
+    f"an increase of \${increase:,.0f} per worker observation."
 )
 
 st.divider()
