@@ -33,11 +33,25 @@ df["industry_name"] = df["industry"].map(industry_labels).fillna(df["industry"].
 
 st.sidebar.header("Scenario Controls")
 
-stress = st.sidebar.slider("Stress Multiplier", 1.0, 2.0, 1.2, 0.05)
-lambda_multiplier = st.sidebar.slider("Replacement Cost Multiplier", 0.1, 1.5, 0.5, 0.1)
+stress = st.sidebar.slider(
+    "Stress Multiplier",
+    min_value=1.0,
+    max_value=2.0,
+    value=1.2,
+    step=0.05
+)
+
+lambda_multiplier = st.sidebar.slider(
+    "Replacement Cost Multiplier",
+    min_value=0.1,
+    max_value=1.5,
+    value=0.5,
+    step=0.1
+)
 
 df["stressed_risk"] = np.minimum(1, df["predicted_risk"] * stress)
 df["replacement_cost"] = lambda_multiplier * df["annual_wage_proxy"]
+df["baseline_expected_cost"] = df["predicted_risk"] * df["replacement_cost"]
 df["stressed_expected_cost"] = df["stressed_risk"] * df["replacement_cost"]
 
 col1, col2, col3 = st.columns(3)
@@ -50,7 +64,7 @@ st.divider()
 
 st.header("Executive Summary")
 
-baseline_cost = df["replacement_cost"].mul(df["predicted_risk"]).mean()
+baseline_cost = df["baseline_expected_cost"].mean()
 stressed_cost = df["stressed_expected_cost"].mean()
 increase = stressed_cost - baseline_cost
 
@@ -69,6 +83,7 @@ industry_summary = (
     .agg(
         avg_risk=("predicted_risk", "mean"),
         avg_stressed_risk=("stressed_risk", "mean"),
+        avg_expected_cost=("baseline_expected_cost", "mean"),
         avg_stressed_cost=("stressed_expected_cost", "mean"),
         n_workers=("industry_name", "count")
     )
@@ -79,6 +94,7 @@ industry_summary = (
 industry_display = industry_summary.copy()
 industry_display["avg_risk"] = industry_display["avg_risk"].map(lambda x: f"{x:.1%}")
 industry_display["avg_stressed_risk"] = industry_display["avg_stressed_risk"].map(lambda x: f"{x:.1%}")
+industry_display["avg_expected_cost"] = industry_display["avg_expected_cost"].map(lambda x: f"${x:,.0f}")
 industry_display["avg_stressed_cost"] = industry_display["avg_stressed_cost"].map(lambda x: f"${x:,.0f}")
 
 st.header("Top Industries by Workforce Risk Exposure")
