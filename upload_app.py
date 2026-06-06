@@ -404,6 +404,68 @@ else:
         "Human-Centered and Physical/Field Protected roles require more careful human-centered transition planning."
     )
 
+# =====================
+# HCRL Decision Engine
+# =====================
+
+st.divider()
+st.header("HCRL Decision Engine")
+
+@st.cache_data
+def load_decision_report():
+    return pd.read_csv("hcrl_v1_integrated_decision_report.csv")
+
+try:
+    decision_report = load_decision_report()
+
+    st.write(
+        "This section combines workforce attrition risk, economic exposure, root-cause drivers, "
+        "and O*NET-based AI strategy categories into an executive decision report."
+    )
+
+    st.subheader("Integrated Workforce Decision Report")
+
+    display_decision = decision_report.copy()
+
+    if "risk_share_pct" in display_decision.columns:
+        display_decision["risk_share_pct"] = display_decision["risk_share_pct"].map(
+            lambda x: f"{x:.2f}%"
+        )
+
+    if "ai_exposure_score" in display_decision.columns:
+        display_decision["ai_exposure_score"] = display_decision["ai_exposure_score"].map(
+            lambda x: "AI mapping unavailable" if pd.isna(x) else f"{x:.2f}"
+        )
+
+    st.dataframe(display_decision, use_container_width=True)
+
+    st.subheader("Top Strategic Priorities")
+
+    top_priorities = decision_report.sort_values("risk_rank").head(5)
+
+    for _, row in top_priorities.iterrows():
+        st.markdown(f"""
+        **{row['JobRole']}**
+
+        - Risk Priority Rank: #{int(row['risk_rank'])}
+        - Share of Total Workforce Risk: {row['risk_share_pct']:.2f}%
+        - Primary Risk Driver: {row['Driver']}
+        - AI Strategy Category: {row['workforce_strategy_category']}
+        - Recommendation: {row['final_hcrl_recommendation']}
+        """)
+
+    st.download_button(
+        label="Download HCRL Integrated Decision Report",
+        data=decision_report.to_csv(index=False).encode("utf-8"),
+        file_name="hcrl_v1_integrated_decision_report.csv",
+        mime="text/csv"
+    )
+
+except FileNotFoundError:
+    st.warning(
+        "HCRL integrated decision report not found. "
+        "Upload `hcrl_v1_integrated_decision_report.csv` to the GitHub repository."
+    )
 
 # =====================
 # Download report
@@ -432,22 +494,7 @@ st.download_button(
 with st.expander("Methodology"):
     st.write(
         """
-        This upload-based prototype estimates workforce attrition exposure using three core inputs:
-        predicted attrition risk, annual wage, and a replacement-cost multiplier.
-
-        For the IBM HR Attrition dataset, the prototype maps:
-        - MonthlyIncome to annual wage by multiplying by 12
-        - Attrition to a simplified risk proxy
-
-        Expected Attrition Cost = Predicted Risk × Replacement Cost
-
-        Replacement Cost = Annual Wage × Replacement Cost Multiplier
-
-        The stress scenario increases predicted attrition probabilities by the selected multiplier,
-        capped at 100%.
-
-        This MVP is intended for analytical demonstration and does not make individual HR,
-        hiring, firing, or performance decisions.
+HCRL analyzes workforce risk by combining employee turnover patterns, workforce economics, and occupational AI exposure data. The platform identifies which workforce segments contribute most to organizational risk, estimates potential business impact, and recommends targeted interventions to improve workforce stability, productivity, and long-term resilience. AI-related recommendations focus on workforce transformation, augmentation, and reskilling opportunities rather than employee replacement.
         """
     )
 
