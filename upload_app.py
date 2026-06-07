@@ -284,6 +284,35 @@ def load_decision_report():
 try:
     decision_report = load_decision_report()
 
+    decision_report["final_hcrl_recommendation"] = (
+    decision_report["final_hcrl_recommendation"]
+    .str.replace(
+        "stability This role",
+        "stability. This role",
+        regex=False
+    )
+    .str.replace(
+        "stability In parallel",
+        "stability. In parallel",
+        regex=False
+    )
+    .str.replace(
+        "development Redesign",
+        "development. Redesign",
+        regex=False
+    )
+    .str.replace(
+        "development In parallel",
+        "development. In parallel",
+        regex=False
+    )
+    .str.replace(
+        "ownership Redesign",
+        "ownership. Redesign",
+        regex=False
+    )
+)
+    
     st.write(
         "This section combines workforce attrition risk, economic exposure, root-cause drivers, "
         "and O*NET-based AI strategy categories into an executive decision report."
