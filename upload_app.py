@@ -328,28 +328,62 @@ st.pyplot(fig)
 st.divider()
 
 # =====================
-# Risk segmentation
+# Risk concentration
 # =====================
 
-st.header("Risk Segmentation")
+st.header("Workforce Risk Concentration")
 
-df["risk_bucket"] = pd.qcut(
-    df["predicted_risk"],
-    q=3,
-    labels=[
-        "Lower Relative Risk",
-        "Middle Relative Risk",
-        "Higher Relative Risk"
-    ],
-    duplicates="drop"
+if "JobRole" in df.columns:
+    concentration_col = "JobRole"
+elif "job_role" in df.columns:
+    concentration_col = "job_role"
+else:
+    concentration_col = segment_col
+
+risk_concentration = (
+    df.groupby(concentration_col)
+    .agg(
+        avg_risk=("predicted_risk", "mean"),
+        n_workers=(concentration_col, "count"),
+        total_expected_exposure=("baseline_expected_cost", "sum")
+    )
 )
 
-bucket_counts = df["risk_bucket"].value_counts().sort_index()
+risk_concentration["risk_share_pct"] = (
+    risk_concentration["total_expected_exposure"]
+    / risk_concentration["total_expected_exposure"].sum()
+    * 100
+)
 
-fig2, ax2 = plt.subplots(figsize=(6, 6))
-ax2.pie(bucket_counts, labels=bucket_counts.index, autopct="%1.1f%%")
-ax2.set_title("Relative Workforce Risk Distribution")
+risk_concentration = risk_concentration.sort_values(
+    "risk_share_pct",
+    ascending=False
+)
+
+display_concentration = risk_concentration.copy()
+display_concentration["avg_risk"] = display_concentration["avg_risk"].map(lambda x: f"{x:.1%}")
+display_concentration["total_expected_exposure"] = display_concentration["total_expected_exposure"].map(lambda x: f"${x:,.0f}")
+display_concentration["risk_share_pct"] = display_concentration["risk_share_pct"].map(lambda x: f"{x:.2f}%")
+
+st.dataframe(display_concentration, use_container_width=True)
+
+top_risk_concentration = risk_concentration.head(10)
+
+fig2, ax2 = plt.subplots(figsize=(10, 5))
+ax2.barh(
+    top_risk_concentration.index.astype(str),
+    top_risk_concentration["risk_share_pct"]
+)
+ax2.set_xlabel("Share of Total Expected Workforce Risk (%)")
+ax2.set_ylabel(concentration_col)
+ax2.set_title("Top Workforce Segments by Share of Total Risk")
+ax2.invert_yaxis()
 st.pyplot(fig2)
+
+st.info(
+    "This view shows which workforce segments contribute the largest share of total expected workforce risk. "
+    "Unlike equal-sized risk buckets, this identifies where risk is actually concentrated."
+)
 
 st.divider()
 
