@@ -1,20 +1,11 @@
-"""HCRL Enterprise App.
-
-Enterprise architecture:
-Company Upload
-→ Schema Validation
-→ O*NET Mapping
-→ Attrition Risk Engine
-→ Economic Exposure Engine
-→ Decision Intelligence Engine
-→ Optional Intervention Economics
-"""
+"""HCRL Enterprise App."""
 
 import streamlit as st
 import pandas as pd
 
 from hcrl_schema import standardize_workforce_data
 from hcrl_onet_mapper import map_to_onet
+from hcrl_task_intelligence_engine import attach_task_intelligence
 from hcrl_risk_engine import estimate_attrition_risk
 from hcrl_cost_engine import estimate_expected_attrition_cost
 from hcrl_decision_engine import build_segment_decision_table
@@ -35,9 +26,9 @@ st.title("Human Capital Risk Lab")
 st.subheader("Enterprise Workforce Transformation Intelligence Platform")
 
 st.write(
-    "HCRL analyzes workforce risk, economic exposure, O*NET occupation intelligence, "
-    "AI transformation exposure, and intervention economics. The platform does not "
-    "make firing recommendations."
+    "HCRL analyzes workforce risk, economic exposure, occupation-task structure, "
+    "O*NET intelligence, and intervention economics. The platform does not make "
+    "firing recommendations."
 )
 
 st.divider()
@@ -52,10 +43,6 @@ st.header("1. Upload Workforce Data")
 workforce_file = st.file_uploader(
     "Upload company workforce CSV",
     type=["csv"],
-)
-
-onet_reference = pd.read_csv(
-    "onet_occupation_feature_table.csv"
 )
 
 intervention_file = st.file_uploader(
@@ -97,15 +84,18 @@ c3.metric("Model Features", len(schema_report.model_feature_columns))
 c4.metric("Unmapped Columns", len(schema_report.unmapped_columns))
 
 st.subheader("Mapped Columns")
-st.dataframe(
-    pd.DataFrame(
-        [
-            {"HCRL Field": k, "Source Column": v}
-            for k, v in schema_report.mapped_columns.items()
-        ]
-    ),
-    use_container_width=True,
+
+mapped_columns_df = pd.DataFrame(
+    [
+        {"HCRL Field": k, "Source Column": v}
+        for k, v in schema_report.mapped_columns.items()
+    ]
 )
+
+if mapped_columns_df.empty:
+    st.info("No canonical HCRL fields were automatically mapped.")
+else:
+    st.dataframe(mapped_columns_df, use_container_width=True)
 
 if schema_report.warnings:
     st.warning("Schema warnings:")
@@ -125,53 +115,99 @@ if schema_report.errors:
 
 st.header("3. O*NET Occupation Intelligence")
 
-if onet_file is not None:
-    onet_ref = pd.read_csv(onet_file)
+try:
+    onet_reference = pd.read_csv("onet_occupation_feature_table.csv")
+    df, onet_report = map_to_onet(df, onet_reference)
 
-    try:
-        df, onet_report = map_to_onet(df, onet_ref)
+    o1, o2, o3, o4 = st.columns(4)
 
-        o1, o2, o3, o4 = st.columns(4)
+    o1.metric("Role Column", str(onet_report.role_column))
+    o2.metric("Mapping Coverage", f"{onet_report.coverage:.1%}")
+    o3.metric("Accepted Matches", f"{onet_report.accepted_matches:,}")
+    o4.metric("Review Required", f"{onet_report.review_required_matches:,}")
 
-        o1.metric("Role Column", str(onet_report.role_column))
-        o2.metric("Mapping Coverage", f"{onet_report.coverage:.1%}")
-        o3.metric("Accepted Matches", f"{onet_report.accepted_matches:,}")
-        o4.metric("Review Required", f"{onet_report.review_required_matches:,}")
+    st.write(onet_report.note)
 
-        st.write(onet_report.note)
-
-        mapping_preview_cols = [
-            col for col in [
-                "employee_id",
-                "job_title",
-                "occupation_code",
-                "matched_onet_title",
-                "matched_onet_code",
-                "onet_match_score",
-                "onet_match_method",
-                "onet_match_status",
-            ]
-            if col in df.columns
+    mapping_preview_cols = [
+        col for col in [
+            "employee_id",
+            "job_title",
+            "occupation_code",
+            "matched_onet_title",
+            "matched_onet_code",
+            "onet_match_score",
+            "onet_match_method",
+            "onet_match_status",
         ]
+        if col in df.columns
+    ]
 
-        st.subheader("O*NET Mapping Preview")
-        st.dataframe(df[mapping_preview_cols].head(50), use_container_width=True)
+    st.subheader("O*NET Mapping Preview")
+    st.dataframe(df[mapping_preview_cols].head(50), use_container_width=True)
 
-    except Exception as e:
-        st.error(f"O*NET mapping failed: {e}")
+except Exception as e:
+    st.error(f"O*NET mapping failed: {e}")
 
-else:
-    st.info(
-        "No O*NET reference table uploaded. Occupation intelligence, AI exposure, "
-        "SHCI, augmentation, and automation feasibility will be unavailable."
+
+# =========================
+# Task Intelligence
+# =========================
+
+st.header("4. Task Intelligence")
+
+try:
+    df, role_task_table, task_report = attach_task_intelligence(df)
+
+    t1, t2, t3, t4 = st.columns(4)
+
+    t1.metric(
+        "Task Summary Available",
+        "Yes" if task_report.task_summary_available else "No",
     )
+
+    t2.metric(
+        "Task Portfolio Available",
+        "Yes" if task_report.task_portfolio_available else "No",
+    )
+
+    t3.metric("Matched Occupations", f"{task_report.matched_occupations:,}")
+    t4.metric("Unmatched Occupations", f"{task_report.unmatched_occupations:,}")
+
+    if task_report.warnings:
+        st.warning("Task Intelligence warnings:")
+        for warning in task_report.warnings:
+            st.write(f"- {warning}")
+
+    if task_report.errors:
+        st.error("Task Intelligence errors:")
+        for error in task_report.errors:
+            st.write(f"- {error}")
+
+    if not role_task_table.empty:
+        st.subheader("Occupation Task Intelligence")
+        st.dataframe(role_task_table, use_container_width=True)
+
+        st.download_button(
+            label="Download Occupation Task Table",
+            data=role_task_table.to_csv(index=False).encode("utf-8"),
+            file_name="hcrl_occupation_task_table.csv",
+            mime="text/csv",
+        )
+    else:
+        st.info(
+            "Task table unavailable. This usually means O*NET mapping failed or "
+            "task portfolio files are missing."
+        )
+
+except Exception as e:
+    st.error(f"Task Intelligence Engine failed: {e}")
 
 
 # =========================
 # Risk Engine
 # =========================
 
-st.header("4. Attrition Risk Engine")
+st.header("5. Attrition Risk Engine")
 
 df, risk_report = estimate_attrition_risk(
     df,
@@ -202,7 +238,10 @@ if "predicted_attrition_probability" in df.columns:
     ).dropna()
 
     if not valid_risk.empty:
-        st.metric("Average Predicted Attrition Probability", f"{valid_risk.mean():.1%}")
+        st.metric(
+            "Average Predicted Attrition Probability",
+            f"{valid_risk.mean():.1%}",
+        )
     else:
         st.info("Attrition probabilities are unavailable for this dataset.")
 
@@ -211,7 +250,7 @@ if "predicted_attrition_probability" in df.columns:
 # Cost Engine
 # =========================
 
-st.header("5. Economic Exposure Engine")
+st.header("6. Economic Exposure Engine")
 
 df, cost_report = estimate_expected_attrition_cost(df)
 
@@ -231,19 +270,25 @@ if cost_report.errors:
         st.write(f"- {error}")
 
 if "expected_attrition_cost" in df.columns:
-    valid_cost = pd.to_numeric(df["expected_attrition_cost"], errors="coerce").dropna()
+    valid_cost = pd.to_numeric(
+        df["expected_attrition_cost"],
+        errors="coerce",
+    ).dropna()
 
     if not valid_cost.empty:
         st.metric("Total Expected Attrition Cost", f"${valid_cost.sum():,.0f}")
     else:
-        st.info("Expected attrition cost is unavailable until risk and replacement-cost inputs exist.")
+        st.info(
+            "Expected attrition cost is unavailable until risk and replacement-cost "
+            "inputs exist."
+        )
 
 
 # =========================
 # Decision Intelligence
 # =========================
 
-st.header("6. Decision Intelligence")
+st.header("7. Decision Intelligence")
 
 segment_options = [
     col for col in [
@@ -295,7 +340,7 @@ else:
 # Intervention Economics
 # =========================
 
-st.header("7. Intervention Economics")
+st.header("8. Intervention Economics")
 
 if not HAS_INTERVENTION_ENGINE:
     st.info("Intervention engine file not found yet.")
@@ -328,7 +373,11 @@ else:
         for error in intervention_report.errors:
             st.write(f"- {error}")
     else:
-        st.metric("Intervention Options Evaluated", f"{intervention_report.n_options:,}")
+        st.metric(
+            "Intervention Options Evaluated",
+            f"{intervention_report.n_options:,}",
+        )
+
         st.dataframe(intervention_results, use_container_width=True)
 
         st.download_button(
@@ -343,7 +392,7 @@ else:
 # Download Full Dataset
 # =========================
 
-st.header("8. Download Full HCRL Output")
+st.header("9. Download Full HCRL Output")
 
 st.download_button(
     label="Download Full HCRL Analyzed Dataset",
@@ -362,9 +411,9 @@ with st.expander("Methodology and Limitations"):
         """
 HCRL is a quantitative workforce transformation intelligence platform.
 
-The system separates workforce data validation, occupation mapping, attrition
-risk estimation, economic exposure modeling, decision intelligence, and
-intervention economics into independent modules.
+The system separates workforce data validation, occupation mapping, task
+intelligence, attrition risk estimation, economic exposure modeling, decision
+intelligence, and intervention economics into independent modules.
 
 The platform does not make firing recommendations.
 
@@ -377,6 +426,7 @@ Current enterprise limitations:
 - Intervention ROI requires company-supplied or externally validated cost and
   benefit assumptions.
 - O*NET mapping should be reviewed when match status is review_required.
+- Task intelligence depends on successful O*NET occupation mapping.
         """
     )
 
