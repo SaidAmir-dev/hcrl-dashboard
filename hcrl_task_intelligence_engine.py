@@ -61,7 +61,7 @@ def _standardize_code(series: pd.Series) -> pd.Series:
 
 
 def load_task_summary(
-    path: str = "data/hcrl_occupation_task_summary.csv",
+    path: str = "hcrl_occupation_task_summary.csv",
 ) -> pd.DataFrame:
     summary = pd.read_csv(path)
 
@@ -74,7 +74,7 @@ def load_task_summary(
 
 
 def load_task_portfolio(
-    path: str = "data/hcrl_occupation_task_portfolio.csv",
+    path: str = "hcrl_occupation_task_portfolio.csv",
 ) -> pd.DataFrame:
     portfolio = pd.read_csv(path)
 
