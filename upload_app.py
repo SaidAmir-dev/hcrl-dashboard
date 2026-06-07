@@ -427,19 +427,36 @@ if role_col is None:
 else:
     matched_rate = df["matched_onet_title"].notna().mean()
 
-    a1, a2, a3 = st.columns(3)
+a1, a2, a3 = st.columns(3)
 
-    a1.metric("Role Match Rate", f"{matched_rate:.1%}")
-    a2.metric("Avg AI Exposure", f"{df['ai_exposure_score'].mean():.2f}")
-    a3.metric("Most Common Strategy", df["workforce_strategy_category"].mode()[0])
+a1.metric(
+    "AI Mapping Coverage",
+    f"{matched_rate:.1%}"
+)
+
+a2.metric(
+    "Average AI Exposure",
+    f"{mapped_df['ai_exposure_score'].mean():.2f}"
+)
+
+a3.metric(
+    "Most Common AI Strategy",
+    mapped_df["workforce_strategy_category"].mode()[0]
+)
 
     st.write(
         "This section maps workforce roles to O*NET-based occupational AI exposure categories. "
         "The categories represent workforce transformation pathways, not firing recommendations."
     )
+    
+# Only occupations successfully matched to O*NET
+
+mapped_df = df[
+    df["workforce_strategy_category"] != "Unmatched"
+].copy()
 
     strategy_summary = (
-        df.groupby("workforce_strategy_category")
+        mapped_df.groupby("workforce_strategy_category")
         .agg(
             n_workers=("workforce_strategy_category", "count"),
             avg_ai_exposure=("ai_exposure_score", "mean"),
@@ -460,7 +477,7 @@ else:
     st.subheader("Role-Level AI Strategy Table")
 
     role_ai_summary = (
-        df.groupby(role_col)
+        mapped_df.groupby(role_col)
         .agg(
             matched_onet_title=("matched_onet_title", "first"),
             workforce_strategy_category=("workforce_strategy_category", "first"),
