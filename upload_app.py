@@ -2,20 +2,13 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import joblib
-import json
+
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.linear_model import LogisticRegression
 
 st.set_page_config(page_title="HCRL Upload Prototype", layout="wide")
-
-@st.cache_resource
-def load_attrition_model():
-
-    model = joblib.load("hcrl_attrition_model.pkl")
-
-    with open("hcrl_model_features.json", "r") as f:
-        model_features = json.load(f)
-
-    return model, model_features
     
 st.title("Human Capital Risk Lab")
 st.subheader("Upload-Based Workforce Risk Analytics Prototype")
@@ -42,17 +35,30 @@ else:
 # =====================
 
 if "Attrition" in df.columns and "MonthlyIncome" in df.columns:
-
     st.info(
         "IBM HR Attrition dataset detected. "
-        "Risk scores generated using the trained HCRL attrition model."
+        "Risk scores are generated using a trained model fitted on the uploaded dataset."
     )
 
-    attrition_model, model_features = load_attrition_model()
+    df["attrition_target"] = df["Attrition"].map({
+        "Yes": 1,
+        "No": 0
+    })
+
+    model_features = [
+        "Age", "BusinessTravel", "Department", "DistanceFromHome",
+        "Education", "EnvironmentSatisfaction", "Gender", "JobInvolvement",
+        "JobLevel", "JobRole", "JobSatisfaction", "MaritalStatus",
+        "MonthlyIncome", "NumCompaniesWorked", "OverTime",
+        "PercentSalaryHike", "PerformanceRating",
+        "RelationshipSatisfaction", "StockOptionLevel",
+        "TotalWorkingYears", "TrainingTimesLastYear",
+        "WorkLifeBalance", "YearsAtCompany", "YearsInCurrentRole",
+        "YearsSinceLastPromotion", "YearsWithCurrManager"
+    ]
 
     missing_model_features = [
-        c for c in model_features
-        if c not in df.columns
+        c for c in model_features if c not in df.columns
     ]
 
     if missing_model_features:
@@ -62,14 +68,28 @@ if "Attrition" in df.columns and "MonthlyIncome" in df.columns:
         st.stop()
 
     X_model = df[model_features].copy()
+    y_model = df["attrition_target"].copy()
 
-    df["predicted_risk"] = (
-        attrition_model.predict_proba(X_model)[:, 1]
+    categorical_features = X_model.select_dtypes(include=["object"]).columns.tolist()
+    numeric_features = X_model.select_dtypes(include=["int64", "float64"]).columns.tolist()
+
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("num", StandardScaler(), numeric_features),
+            ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features)
+        ]
     )
 
-    df["annual_wage_proxy"] = (
-        df["MonthlyIncome"] * 12
-    )
+    attrition_model = Pipeline([
+        ("preprocessor", preprocessor),
+        ("classifier", LogisticRegression(max_iter=3000, class_weight="balanced"))
+    ])
+
+    attrition_model.fit(X_model, y_model)
+
+    df["predicted_risk"] = attrition_model.predict_proba(X_model)[:, 1]
+
+    df["annual_wage_proxy"] = df["MonthlyIncome"] * 12
 
     if "Department" in df.columns:
         df["department"] = df["Department"]
@@ -313,18 +333,22 @@ st.divider()
 
 st.header("Risk Segmentation")
 
-df["risk_bucket"] = pd.cut(
+df["risk_bucket"] = pd.qcut(
     df["predicted_risk"],
-    bins=[0, 0.3, 0.6, 1],
-    labels=["Low Risk", "Medium Risk", "High Risk"],
-    include_lowest=True
+    q=3,
+    labels=[
+        "Lower Relative Risk",
+        "Middle Relative Risk",
+        "Higher Relative Risk"
+    ],
+    duplicates="drop"
 )
 
 bucket_counts = df["risk_bucket"].value_counts().sort_index()
 
 fig2, ax2 = plt.subplots(figsize=(6, 6))
 ax2.pie(bucket_counts, labels=bucket_counts.index, autopct="%1.1f%%")
-ax2.set_title("Workforce Risk Distribution")
+ax2.set_title("Relative Workforce Risk Distribution")
 st.pyplot(fig2)
 
 st.divider()
