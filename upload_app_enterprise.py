@@ -45,14 +45,6 @@ workforce_file = st.file_uploader(
     type=["csv"],
 )
 
-intervention_file = st.file_uploader(
-    "Optional: Upload intervention assumptions CSV",
-    type=["csv"],
-    help=(
-        "Required columns: segment, intervention_type, implementation_cost, "
-        "expected_gross_benefit."
-    ),
-)
 
 if workforce_file is None:
     st.info("Upload a company workforce file to begin.")
@@ -332,58 +324,6 @@ else:
             label="Download Segment Decision Table",
             data=decision_table.to_csv(index=False).encode("utf-8"),
             file_name="hcrl_segment_decision_table.csv",
-            mime="text/csv",
-        )
-
-
-# =========================
-# Intervention Economics
-# =========================
-
-st.header("8. Intervention Economics")
-
-if not HAS_INTERVENTION_ENGINE:
-    st.info("Intervention engine file not found yet.")
-elif intervention_file is None:
-    st.info(
-        "Upload an intervention assumptions file to compare retain, retrain, "
-        "augment, redesign, and automate options."
-    )
-
-    st.write("Required columns:")
-
-    st.code(
-        "segment, intervention_type, implementation_cost, expected_gross_benefit"
-    )
-
-else:
-    intervention_df = pd.read_csv(intervention_file)
-
-    intervention_results, intervention_report = evaluate_interventions(
-        intervention_df,
-    )
-
-    if intervention_report.warnings:
-        st.warning("Intervention engine warnings:")
-        for warning in intervention_report.warnings:
-            st.write(f"- {warning}")
-
-    if intervention_report.errors:
-        st.error("Intervention engine errors:")
-        for error in intervention_report.errors:
-            st.write(f"- {error}")
-    else:
-        st.metric(
-            "Intervention Options Evaluated",
-            f"{intervention_report.n_options:,}",
-        )
-
-        st.dataframe(intervention_results, use_container_width=True)
-
-        st.download_button(
-            label="Download Intervention Economics Table",
-            data=intervention_results.to_csv(index=False).encode("utf-8"),
-            file_name="hcrl_intervention_economics.csv",
             mime="text/csv",
         )
 
