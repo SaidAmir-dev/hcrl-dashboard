@@ -2,9 +2,21 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import joblib
+import json
 
 st.set_page_config(page_title="HCRL Upload Prototype", layout="wide")
 
+@st.cache_resource
+def load_attrition_model():
+
+    model = joblib.load("hcrl_attrition_model.pkl")
+
+    with open("hcrl_model_features.json", "r") as f:
+        model_features = json.load(f)
+
+    return model, model_features
+    
 st.title("Human Capital Risk Lab")
 st.subheader("Upload-Based Workforce Risk Analytics Prototype")
 
@@ -30,15 +42,34 @@ else:
 # =====================
 
 if "Attrition" in df.columns and "MonthlyIncome" in df.columns:
-    st.info("IBM HR Attrition dataset detected. Variables were automatically mapped.")
 
-    df["predicted_risk"] = np.where(
-        df["Attrition"].astype(str).str.lower() == "yes",
-        0.75,
-        0.25
+    st.info(
+        "IBM HR Attrition dataset detected. "
+        "Risk scores generated using the trained HCRL attrition model."
     )
 
-    df["annual_wage_proxy"] = df["MonthlyIncome"] * 12
+    attrition_model, model_features = load_attrition_model()
+
+    missing_model_features = [
+        c for c in model_features
+        if c not in df.columns
+    ]
+
+    if missing_model_features:
+        st.error(
+            f"Dataset missing required model features: {missing_model_features}"
+        )
+        st.stop()
+
+    X_model = df[model_features].copy()
+
+    df["predicted_risk"] = (
+        attrition_model.predict_proba(X_model)[:, 1]
+    )
+
+    df["annual_wage_proxy"] = (
+        df["MonthlyIncome"] * 12
+    )
 
     if "Department" in df.columns:
         df["department"] = df["Department"]
