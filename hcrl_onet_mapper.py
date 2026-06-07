@@ -405,4 +405,24 @@ def map_to_onet(
     unmatched = int((out["onet_match_status"] == "unmatched").sum())
 
     exact = int(out["onet_match_method"].isin(["exact_title", "exact_soc_code"]).sum())
-    fuzzy = int(out["onet_match_method"].str.contains("fuzzy", na=False).
+    fuzzy = int(out["onet_match_method"].str.contains("fuzzy", na=False).sum())
+
+    coverage = float(
+        out["onet_match_status"].isin(["accepted", "review_required"]).mean()
+    ) if len(out) else 0.0
+
+    return out, OnetMappingReport(
+        role_column=role_col,
+        coverage=coverage,
+        accepted_matches=accepted,
+        review_required_matches=review_required,
+        unmatched=unmatched,
+        exact_matches=exact,
+        fuzzy_matches=fuzzy,
+        note=(
+            "Occupation mapping uses exact code/title matching, family-constrained "
+            "candidate filtering, fuzzy scoring, and audit status labels. "
+            "Accepted matches can be used automatically. Review-required matches "
+            "should be inspected before enterprise reporting."
+        ),
+    )
