@@ -148,6 +148,17 @@ def clean_text(x):
 
 ai_ref["match_title"] = ai_ref["Title"].apply(clean_text)
 
+ibm_to_onet_role_map = {
+    "Sales Executive": "Sales Managers",
+    "Sales Representative": "Sales Representatives, Wholesale and Manufacturing, Except Technical and Scientific Products",
+    "Research Scientist": "Computer and Information Research Scientists",
+    "Laboratory Technician": "Medical and Clinical Laboratory Technicians",
+    "Manufacturing Director": "Industrial Production Managers",
+    "Healthcare Representative": None,
+    "Manager": "General and Operations Managers",
+    "Research Director": "Natural Sciences Managers",
+    "Human Resources": "Human Resources Managers"
+}
 role_col = None
 for possible_col in ["JobRole", "job_role", "Title", "occupation", "Occupation"]:
     if possible_col in df.columns:
@@ -156,7 +167,15 @@ for possible_col in ["JobRole", "job_role", "Title", "occupation", "Occupation"]
 
 def match_ai_strategy(role):
     role_clean = clean_text(role)
+    mapped_title = ibm_to_onet_role_map.get(str(role))
 
+    if mapped_title is not None:
+        mapped_clean = clean_text(mapped_title)
+
+        mapped_exact = ai_ref[ai_ref["match_title"] == mapped_clean]
+        if len(mapped_exact) > 0:
+            return mapped_exact.iloc[0]
+            
     exact = ai_ref[ai_ref["match_title"] == role_clean]
     if len(exact) > 0:
         return exact.iloc[0]
