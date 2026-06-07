@@ -446,6 +446,16 @@ if role_col is None:
 else:
     matched_rate = df["matched_onet_title"].notna().mean()
 
+mapped_df = df[
+    (df["matched_onet_title"].notna()) &
+    (df["workforce_strategy_category"] != "Unmatched") &
+    (df["workforce_strategy_category"] != "AI mapping unavailable")
+].copy()
+
+if mapped_df.empty:
+    st.warning("No roles were successfully mapped to O*NET AI strategy categories.")
+    st.stop()
+    
 a1, a2, a3 = st.columns(3)
 
 a1.metric(
