@@ -475,15 +475,15 @@ mapped_df = df[
     df["workforce_strategy_category"] != "Unmatched"
 ].copy()
 
-    strategy_summary = (
-        mapped_df.groupby("workforce_strategy_category")
-        .agg(
-            n_workers=("workforce_strategy_category", "count"),
-            avg_ai_exposure=("ai_exposure_score", "mean"),
-            avg_attrition_risk=("predicted_risk", "mean"),
-            avg_stressed_cost=("stressed_expected_cost", "mean")
-        )
-        .sort_values("n_workers", ascending=False)
+strategy_summary = (
+    mapped_df.groupby("workforce_strategy_category")
+    .agg(
+        n_workers=("workforce_strategy_category", "count"),
+        avg_ai_exposure=("ai_exposure_score", "mean"),
+        avg_attrition_risk=("predicted_risk", "mean"),
+        avg_stressed_cost=("stressed_expected_cost", "mean")
+    )
+    .sort_values("n_workers", ascending=False)
     )
 
     display_strategy = strategy_summary.copy()
