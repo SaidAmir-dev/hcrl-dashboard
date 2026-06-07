@@ -1,33 +1,29 @@
-"""O*NET occupation intelligence mapping for HCRL.
+"""HCRL O*NET occupation resolver.
 
-This module maps company job titles or occupation codes to O*NET occupations.
+Generalized occupation mapping for any company.
 
-Enterprise principle:
-Never silently force a weak occupation match.
+Principle:
+Do NOT rely on raw fuzzy title matching alone.
+Use:
+1. exact O*NET-SOC code match
+2. exact title match
+3. occupational family detection
+4. family-constrained fuzzy matching
+5. confidence/status audit layer
 
-A weak job-title match can corrupt every downstream HCRL module:
-- AI exposure
-- strategic human capital importance
-- augmentation potential
-- automation feasibility
-- intervention logic
-
-Therefore, this mapper assigns a mapping status:
-    accepted
-    review_required
-    unmatched
+This is not IBM-specific.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from difflib import SequenceMatcher
-from typing import Optional, Tuple, Dict, List
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
 
-AUTO_ACCEPT_THRESHOLD = 0.90
+AUTO_ACCEPT_THRESHOLD = 0.88
 REVIEW_THRESHOLD = 0.70
 
 
@@ -43,6 +39,86 @@ class OnetMappingReport:
     note: str
 
 
+OCCUPATION_FAMILY_KEYWORDS: Dict[str, List[str]] = {
+    "sales": [
+        "sales", "account executive", "account manager", "business development",
+        "sales representative", "sales executive", "sales manager"
+    ],
+    "software_it": [
+        "software", "developer", "engineer", "programmer", "data engineer",
+        "backend", "frontend", "full stack", "systems", "it", "information systems"
+    ],
+    "research_science": [
+        "research", "scientist", "laboratory", "lab", "clinical research",
+        "r&d", "biology", "chemist", "medical scientist"
+    ],
+    "human_resources": [
+        "human resources", "hr", "talent", "recruiter", "people operations",
+        "compensation", "benefits"
+    ],
+    "healthcare": [
+        "healthcare", "medical", "patient", "clinical", "nurse", "physician",
+        "health services", "hospital"
+    ],
+    "manufacturing_operations": [
+        "manufacturing", "production", "operations", "plant", "industrial",
+        "quality", "supply chain"
+    ],
+    "management": [
+        "manager", "director", "executive", "chief", "supervisor", "lead",
+        "operations manager"
+    ],
+    "finance": [
+        "finance", "financial", "accounting", "accountant", "analyst",
+        "controller", "treasurer", "investment"
+    ],
+    "marketing": [
+        "marketing", "brand", "advertising", "promotion", "market research"
+    ],
+    "customer_support": [
+        "customer", "support", "service", "client success", "representative"
+    ],
+}
+
+
+ONET_FAMILY_FILTERS: Dict[str, List[str]] = {
+    "sales": [
+        "sales", "account", "business development", "marketing"
+    ],
+    "software_it": [
+        "software", "developer", "programmer", "computer", "information systems",
+        "data", "web", "network", "database"
+    ],
+    "research_science": [
+        "scientist", "research", "laboratory", "clinical", "biological",
+        "chemist", "medical scientists", "natural sciences"
+    ],
+    "human_resources": [
+        "human resources", "training", "compensation", "benefits", "recruit"
+    ],
+    "healthcare": [
+        "medical", "health", "patient", "clinical", "nurse", "physician"
+    ],
+    "manufacturing_operations": [
+        "production", "manufacturing", "industrial", "quality", "operations",
+        "supply chain", "logistics"
+    ],
+    "management": [
+        "managers", "supervisors", "chief executives", "general and operations"
+    ],
+    "finance": [
+        "financial", "accountants", "auditors", "budget", "investment",
+        "treasurers", "controllers"
+    ],
+    "marketing": [
+        "marketing", "advertising", "promotions", "market research"
+    ],
+    "customer_support": [
+        "customer", "service", "representatives", "client"
+    ],
+}
+
+
 def _clean(x) -> str:
     return (
         str(x)
@@ -52,18 +128,13 @@ def _clean(x) -> str:
         .replace("/", " ")
         .replace("-", " ")
         .replace("_", " ")
+        .replace(",", " ")
+        .replace(".", " ")
     )
 
 
 def _compact(x) -> str:
-    return (
-        _clean(x)
-        .replace(" ", "")
-        .replace(",", "")
-        .replace(".", "")
-        .replace("(", "")
-        .replace(")", "")
-    )
+    return "".join(_clean(x).split())
 
 
 def _token_set(x: str) -> set:
@@ -77,20 +148,13 @@ def _token_overlap_score(a: str, b: str) -> float:
     if not a_tokens or not b_tokens:
         return 0.0
 
-    return len(a_tokens.intersection(b_tokens)) / len(a_tokens.union(b_tokens))
+    return len(a_tokens & b_tokens) / len(a_tokens | b_tokens)
 
 
 def _combined_similarity(a: str, b: str) -> float:
-    """Combine sequence similarity and token-overlap similarity.
-
-    This is not a causal or economic score.
-    It is only a mapping-confidence heuristic.
-    """
-
     seq_score = SequenceMatcher(None, _clean(a), _clean(b)).ratio()
     compact_score = SequenceMatcher(None, _compact(a), _compact(b)).ratio()
     token_score = _token_overlap_score(a, b)
-
     return max(seq_score, compact_score, token_score)
 
 
@@ -110,7 +174,6 @@ def _detect_role_column(df: pd.DataFrame) -> Optional[str]:
     ]:
         if col in df.columns:
             return col
-
     return None
 
 
@@ -127,9 +190,47 @@ def _prepare_reference(onet_reference: pd.DataFrame) -> Tuple[pd.DataFrame, str,
     ref["_compact_title"] = ref[title_col].apply(_compact)
 
     if code_col is not None:
-        ref[code_col] = ref[code_col].astype(str)
+        ref[code_col] = ref[code_col].astype(str).str.strip()
 
     return ref, title_col, code_col
+
+
+def _infer_family(job_title: str, department: Optional[str] = None) -> Optional[str]:
+    combined = _clean(f"{job_title} {department or ''}")
+
+    best_family = None
+    best_hits = 0
+
+    for family, keywords in OCCUPATION_FAMILY_KEYWORDS.items():
+        hits = sum(1 for kw in keywords if _clean(kw) in combined)
+
+        if hits > best_hits:
+            best_hits = hits
+            best_family = family
+
+    return best_family if best_hits > 0 else None
+
+
+def _filter_reference_by_family(
+    ref: pd.DataFrame,
+    title_col: str,
+    family: Optional[str],
+) -> pd.DataFrame:
+    if family is None or family not in ONET_FAMILY_FILTERS:
+        return ref
+
+    keywords = ONET_FAMILY_FILTERS[family]
+
+    mask = ref[title_col].astype(str).apply(
+        lambda title: any(_clean(kw) in _clean(title) for kw in keywords)
+    )
+
+    filtered = ref[mask].copy()
+
+    if filtered.empty:
+        return ref
+
+    return filtered
 
 
 def _exact_code_match(value: str, ref: pd.DataFrame, code_col: Optional[str]) -> Optional[pd.Series]:
@@ -137,10 +238,9 @@ def _exact_code_match(value: str, ref: pd.DataFrame, code_col: Optional[str]) ->
         return None
 
     value_str = str(value).strip()
+    matches = ref[ref[code_col].astype(str).str.strip() == value_str]
 
-    matches = ref[ref[code_col].astype(str) == value_str]
-
-    if len(matches) == 0:
+    if matches.empty:
         return None
 
     return matches.iloc[0]
@@ -155,7 +255,7 @@ def _exact_title_match(value: str, ref: pd.DataFrame, title_col: str) -> Optiona
         | (ref["_compact_title"] == value_compact)
     ]
 
-    if len(matches) == 0:
+    if matches.empty:
         return None
 
     return matches.iloc[0]
@@ -163,11 +263,8 @@ def _exact_title_match(value: str, ref: pd.DataFrame, title_col: str) -> Optiona
 
 def _best_fuzzy_title_match(value: str, ref: pd.DataFrame, title_col: str) -> Tuple[pd.Series, float]:
     scores = ref[title_col].apply(lambda title: _combined_similarity(value, title))
-
     best_idx = scores.idxmax()
-    best_score = float(scores.loc[best_idx])
-
-    return ref.loc[best_idx], best_score
+    return ref.loc[best_idx], float(scores.loc[best_idx])
 
 
 def _classify_match(score: float, method: str) -> str:
@@ -189,6 +286,7 @@ def _map_single_role(
     ref: pd.DataFrame,
     title_col: str,
     code_col: Optional[str],
+    department_value=None,
 ) -> Dict[str, object]:
 
     if pd.isna(value) or str(value).strip() == "":
@@ -198,12 +296,11 @@ def _map_single_role(
             "onet_match_score": pd.NA,
             "onet_match_method": "missing_role",
             "onet_match_status": "unmatched",
+            "onet_family": pd.NA,
         }
 
-    # If role column is occupation-code-like, try exact code first
     if role_col in {"occupation_code", "matched_onet_code", "soc_code"}:
         code_match = _exact_code_match(str(value), ref, code_col)
-
         if code_match is not None:
             return {
                 "matched_onet_title": code_match[title_col],
@@ -211,11 +308,10 @@ def _map_single_role(
                 "onet_match_score": 1.0,
                 "onet_match_method": "exact_soc_code",
                 "onet_match_status": "accepted",
+                "onet_family": "code_supplied",
             }
 
-    # Try exact title match
     title_match = _exact_title_match(str(value), ref, title_col)
-
     if title_match is not None:
         return {
             "matched_onet_title": title_match[title_col],
@@ -223,27 +319,34 @@ def _map_single_role(
             "onet_match_score": 1.0,
             "onet_match_method": "exact_title",
             "onet_match_status": "accepted",
+            "onet_family": "exact_title",
         }
 
-    # Try fuzzy title match
-    best_match, best_score = _best_fuzzy_title_match(str(value), ref, title_col)
-    status = _classify_match(best_score, "fuzzy_title")
+    family = _infer_family(str(value), department_value)
+    candidate_ref = _filter_reference_by_family(ref, title_col, family)
+
+    best_match, best_score = _best_fuzzy_title_match(str(value), candidate_ref, title_col)
+
+    method = "family_constrained_fuzzy_title" if family else "fuzzy_title"
+    status = _classify_match(best_score, method)
 
     if status == "unmatched":
         return {
             "matched_onet_title": pd.NA,
             "matched_onet_code": pd.NA,
             "onet_match_score": best_score,
-            "onet_match_method": "fuzzy_title_below_review_threshold",
+            "onet_match_method": f"{method}_below_review_threshold",
             "onet_match_status": "unmatched",
+            "onet_family": family or pd.NA,
         }
 
     return {
         "matched_onet_title": best_match[title_col],
         "matched_onet_code": best_match.get(code_col, pd.NA),
         "onet_match_score": best_score,
-        "onet_match_method": "fuzzy_title",
+        "onet_match_method": method,
         "onet_match_status": status,
+        "onet_family": family or pd.NA,
     }
 
 
@@ -261,6 +364,7 @@ def map_to_onet(
         out["onet_match_score"] = pd.NA
         out["onet_match_method"] = "no_role_column"
         out["onet_match_status"] = "unmatched"
+        out["onet_family"] = pd.NA
 
         return out, OnetMappingReport(
             role_column=None,
@@ -275,9 +379,13 @@ def map_to_onet(
 
     ref, title_col, code_col = _prepare_reference(onet_reference)
 
+    department_col = "department" if "department" in out.columns else None
+
     mapped_rows: List[Dict[str, object]] = []
 
-    for value in out[role_col]:
+    for idx, value in out[role_col].items():
+        department_value = out.loc[idx, department_col] if department_col else None
+
         mapped_rows.append(
             _map_single_role(
                 value=value,
@@ -285,6 +393,7 @@ def map_to_onet(
                 ref=ref,
                 title_col=title_col,
                 code_col=code_col,
+                department_value=department_value,
             )
         )
 
@@ -296,23 +405,4 @@ def map_to_onet(
     unmatched = int((out["onet_match_status"] == "unmatched").sum())
 
     exact = int(out["onet_match_method"].isin(["exact_title", "exact_soc_code"]).sum())
-    fuzzy = int(out["onet_match_method"].isin(["fuzzy_title"]).sum())
-
-    coverage = float(
-        out["onet_match_status"].isin(["accepted", "review_required"]).mean()
-    ) if len(out) else 0.0
-
-    return out, OnetMappingReport(
-        role_column=role_col,
-        coverage=coverage,
-        accepted_matches=accepted,
-        review_required_matches=review_required,
-        unmatched=unmatched,
-        exact_matches=exact,
-        fuzzy_matches=fuzzy,
-        note=(
-            "Accepted matches can be used automatically. Review-required matches "
-            "should be inspected before enterprise reporting. Unmatched roles are "
-            "excluded from O*NET-based AI exposure and workforce transformation modules."
-        ),
-    )
+    fuzzy = int(out["onet_match_method"].str.contains("fuzzy", na=False).
