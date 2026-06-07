@@ -516,19 +516,19 @@ display_role_ai["avg_stressed_cost"] = display_role_ai["avg_stressed_cost"].map(
 
 st.dataframe(display_role_ai, use_container_width=True)
 
-    fig3, ax3 = plt.subplots(figsize=(8, 5))
-    strategy_summary["n_workers"].plot(kind="bar", ax=ax3)
-    ax3.set_title("Workforce Distribution by AI Strategy Category")
-    ax3.set_xlabel("Strategy Category")
-    ax3.set_ylabel("Number of Workers")
-    plt.xticks(rotation=35, ha="right")
-    st.pyplot(fig3)
+fig3, ax3 = plt.subplots(figsize=(8, 5))
+strategy_summary["n_workers"].plot(kind="bar", ax=ax3)
+ax3.set_title("Workforce Distribution by AI Strategy Category")
+ax3.set_xlabel("Strategy Category")
+ax3.set_ylabel("Number of Workers")
+plt.xticks(rotation=35, ha="right")
+st.pyplot(fig3)
 
-    st.info(
-        "Interpretation: AI-Augmentable roles may benefit from productivity tools; "
-        "Routine Automation Candidates may be suitable for workflow redesign; "
-        "Human-Centered and Physical/Field Protected roles require more careful human-centered transition planning."
-    )
+st.info(
+    "Interpretation: AI-Augmentable roles may benefit from productivity tools; "
+    "Routine Automation Candidates may be suitable for workflow redesign; "
+    "Human-Centered and Physical/Field Protected roles require more careful human-centered transition planning."
+)
 
 # =====================
 # HCRL Decision Engine
