@@ -54,10 +54,8 @@ workforce_file = st.file_uploader(
     type=["csv"],
 )
 
-onet_file = st.file_uploader(
-    "Upload O*NET reference table CSV",
-    type=["csv"],
-    help="Must contain at least a Title column. Preferably also O*NET-SOC Code.",
+onet_reference = pd.read_csv(
+    "onet_occupation_feature_table.csv"
 )
 
 intervention_file = st.file_uploader(
