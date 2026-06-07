@@ -463,10 +463,11 @@ a3.metric(
     mapped_df["workforce_strategy_category"].mode()[0]
 )
 
-    st.write(
-        "This section maps workforce roles to O*NET-based occupational AI exposure categories. "
-        "The categories represent workforce transformation pathways, not firing recommendations."
-    )
+
+st.write(
+    "This section maps workforce roles to O*NET-based occupational AI exposure categories. "
+    "The categories represent workforce transformation pathways, not firing recommendations."
+)
     
 # Only occupations successfully matched to O*NET
 
