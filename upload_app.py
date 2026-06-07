@@ -28,7 +28,7 @@ if uploaded_file is not None:
     st.success("Custom workforce dataset uploaded successfully.")
 else:
     df = pd.read_csv("hcrl_model_dataset_v1.csv")
-    st.info("No custom file uploaded. Using default HCRL demo dataset.")
+    st.info("No custom file uploaded.")
 
 # =====================
 # Auto-detect IBM HR dataset
