@@ -233,7 +233,7 @@ lambda_multiplier = st.sidebar.slider(
     min_value=0.1,
     max_value=1.5,
     value=0.5,
-    step=0.1
+    step=0.1,
     help="""
 Scenario assumption used to estimate replacement costs.
 Not a prediction.
@@ -267,29 +267,6 @@ col1.metric("Employees Analyzed", f"{len(df):,}")
 col2.metric("Average Risk", f"{df['predicted_risk'].mean():.1%}")
 col3.metric("Average Stressed Risk", f"{df['stressed_risk'].mean():.1%}")
 col4.metric("Avg Stressed Exposure", f"${df['stressed_expected_cost'].mean():,.0f}")
-
-st.divider()
-
-# =====================
-# Executive Summary
-# =====================
-
-baseline_cost = df["baseline_expected_cost"].mean()
-stressed_cost = df["stressed_expected_cost"].mean()
-increase = stressed_cost - baseline_cost
-
-st.header("Executive Summary")
-
-st.write(
-    f"For {company_name}, average expected attrition exposure rises from "
-    f"\${baseline_cost:,.0f} to \${stressed_cost:,.0f} under the selected stress scenario. "
-    f"This represents an increase of \${increase:,.0f} per employee observation."
-)
-
-st.info(
-    f"Average workforce risk increases from {df['predicted_risk'].mean():.1%} "
-    f"to {df['stressed_risk'].mean():.1%} under the selected scenario."
-)
 
 st.divider()
 
@@ -355,6 +332,30 @@ except FileNotFoundError:
         "HCRL integrated decision report not found. "
         "Upload `hcrl_v1_integrated_decision_report.csv` to the GitHub repository."
     )
+
+
+# =====================
+# Executive Summary
+# =====================
+
+baseline_cost = df["baseline_expected_cost"].mean()
+stressed_cost = df["stressed_expected_cost"].mean()
+increase = stressed_cost - baseline_cost
+
+st.header("Executive Summary")
+
+st.write(
+    f"For {company_name}, average expected attrition exposure rises from "
+    f"\${baseline_cost:,.0f} to \${stressed_cost:,.0f} under the selected stress scenario. "
+    f"This represents an increase of \${increase:,.0f} per employee observation."
+)
+
+st.info(
+    f"Average workforce risk increases from {df['predicted_risk'].mean():.1%} "
+    f"to {df['stressed_risk'].mean():.1%} under the selected scenario."
+)
+
+st.divider()
 
 
 # =====================
@@ -642,5 +643,5 @@ HCRL analyzes workforce risk by combining employee turnover patterns, workforce 
 
 st.markdown("---")
 st.caption(
-    "Human Capital Risk Lab (HCRL) | Upload-Based Workforce Risk Analytics Prototype"
+    "Human Capital Risk Lab (HCRL) | Workforce Risk and AI Transformation Decision Platform"
 )
