@@ -514,7 +514,7 @@ display_role_ai["avg_ai_exposure"] = display_role_ai["avg_ai_exposure"].map(lamb
 display_role_ai["avg_attrition_risk"] = display_role_ai["avg_attrition_risk"].map(lambda x: f"{x:.1%}")
 display_role_ai["avg_stressed_cost"] = display_role_ai["avg_stressed_cost"].map(lambda x: f"${x:,.0f}")
 
-    st.dataframe(display_role_ai, use_container_width=True)
+st.dataframe(display_role_ai, use_container_width=True)
 
     fig3, ax3 = plt.subplots(figsize=(8, 5))
     strategy_summary["n_workers"].plot(kind="bar", ax=ax3)
