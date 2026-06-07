@@ -400,8 +400,8 @@ ax2.invert_yaxis()
 st.pyplot(fig2)
 
 st.info(
-    "This view shows which workforce segments contribute the largest share of total expected workforce risk. "
-    "Unlike equal-sized risk buckets, this identifies where risk is actually concentrated."
+    "This chart shows which workforce roles contribute the largest share of total expected workforce risk. "
+    "It helps identify where leadership should focus retention and workforce-stability efforts first."
 )
 
 st.divider()
