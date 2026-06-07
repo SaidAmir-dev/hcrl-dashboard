@@ -234,6 +234,10 @@ lambda_multiplier = st.sidebar.slider(
     max_value=1.5,
     value=0.5,
     step=0.1
+    help="""
+Scenario assumption used to estimate replacement costs.
+Not a prediction.
+"""
 )
 
 # =====================
