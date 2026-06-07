@@ -1,133 +1,386 @@
+"""HCRL Enterprise App.
+
+Enterprise architecture:
+Company Upload
+→ Schema Validation
+→ O*NET Mapping
+→ Attrition Risk Engine
+→ Economic Exposure Engine
+→ Decision Intelligence Engine
+→ Optional Intervention Economics
+"""
+
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 
 from hcrl_schema import standardize_workforce_data
-from hcrl_risk_engine import estimate_attrition_risk
-from hcrl_cost_engine import estimate_expected_cost
 from hcrl_onet_mapper import map_to_onet
-from hcrl_decision_engine import build_segment_exposure, build_decision_support_table
+from hcrl_risk_engine import estimate_attrition_risk
+from hcrl_cost_engine import estimate_expected_attrition_cost
+from hcrl_decision_engine import build_segment_decision_table
 
-st.set_page_config(page_title="HCRL Enterprise Architecture", layout="wide")
+try:
+    from hcrl_intervention_engine import evaluate_interventions
+    HAS_INTERVENTION_ENGINE = True
+except ImportError:
+    HAS_INTERVENTION_ENGINE = False
+
+
+st.set_page_config(
+    page_title="HCRL Enterprise Workforce Intelligence",
+    layout="wide",
+)
 
 st.title("Human Capital Risk Lab")
-st.subheader("Enterprise Workforce Risk Architecture")
+st.subheader("Enterprise Workforce Transformation Intelligence Platform")
+
 st.write(
-    "This version separates schema validation, risk modeling, cost exposure, O*NET mapping, "
-    "and decision-support logic. It avoids IBM-specific assumptions as the core architecture."
+    "HCRL analyzes workforce risk, economic exposure, O*NET occupation intelligence, "
+    "AI transformation exposure, and intervention economics. The platform does not "
+    "make firing recommendations."
 )
 
-uploaded_file = st.file_uploader("Upload Workforce Dataset (CSV)", type=["csv"])
+st.divider()
 
-if uploaded_file is None:
-    st.info("Upload a company workforce CSV to begin. The app will not fabricate demo analytics when no data is supplied.")
+
+# =========================
+# Uploads
+# =========================
+
+st.header("1. Upload Workforce Data")
+
+workforce_file = st.file_uploader(
+    "Upload company workforce CSV",
+    type=["csv"],
+)
+
+onet_file = st.file_uploader(
+    "Upload O*NET reference table CSV",
+    type=["csv"],
+    help="Must contain at least a Title column. Preferably also O*NET-SOC Code.",
+)
+
+intervention_file = st.file_uploader(
+    "Optional: Upload intervention assumptions CSV",
+    type=["csv"],
+    help=(
+        "Required columns: segment, intervention_type, implementation_cost, "
+        "expected_gross_benefit."
+    ),
+)
+
+if workforce_file is None:
+    st.info("Upload a company workforce file to begin.")
     st.stop()
 
-raw_df = pd.read_csv(uploaded_file)
+raw_df = pd.read_csv(workforce_file)
+
+st.success("Workforce file uploaded successfully.")
+st.write(f"Rows uploaded: {len(raw_df):,}")
+st.write(f"Columns uploaded: {len(raw_df.columns):,}")
+
+with st.expander("Preview uploaded data"):
+    st.dataframe(raw_df.head(20), use_container_width=True)
+
+
+# =========================
+# Schema Validation
+# =========================
+
+st.header("2. HCRL Schema Validation")
+
 df, schema_report = standardize_workforce_data(raw_df)
 
-st.header("1. Data Validation Layer")
-st.write(f"Detected source type: `{schema_report.source_type}`")
-st.json(schema_report.mapped_columns)
+c1, c2, c3, c4 = st.columns(4)
 
-for warning in schema_report.warnings:
-    st.warning(warning)
-for error in schema_report.errors:
-    st.error(error)
+c1.metric("Source Type", schema_report.source_type)
+c2.metric("Mapped Fields", len(schema_report.mapped_columns))
+c3.metric("Model Features", len(schema_report.model_feature_columns))
+c4.metric("Unmapped Columns", len(schema_report.unmapped_columns))
 
-if not schema_report.is_valid_for_risk:
+st.subheader("Mapped Columns")
+st.dataframe(
+    pd.DataFrame(
+        [
+            {"HCRL Field": k, "Source Column": v}
+            for k, v in schema_report.mapped_columns.items()
+        ]
+    ),
+    use_container_width=True,
+)
+
+if schema_report.warnings:
+    st.warning("Schema warnings:")
+    for warning in schema_report.warnings:
+        st.write(f"- {warning}")
+
+if schema_report.errors:
+    st.error("Schema errors:")
+    for error in schema_report.errors:
+        st.write(f"- {error}")
     st.stop()
 
-st.header("2. Workforce Risk Engine")
-try:
-    df, risk_report = estimate_attrition_risk(
-        df=df,
-        feature_columns=schema_report.model_feature_columns,
-    )
-    st.write(f"Risk method: `{risk_report.method}`")
-    metric_cols = st.columns(4)
-    metric_cols[0].metric("Observations", f"{risk_report.n_observations:,}")
-    if risk_report.event_rate is not None:
-        metric_cols[1].metric("Observed Event Rate", f"{risk_report.event_rate:.1%}")
-    if risk_report.auc_oof is not None:
-        metric_cols[2].metric("OOF ROC-AUC", f"{risk_report.auc_oof:.3f}")
-    if risk_report.brier_oof is not None:
-        metric_cols[3].metric("OOF Brier Score", f"{risk_report.brier_oof:.3f}")
-    for warning in risk_report.warnings:
-        st.warning(warning)
-except Exception as e:
-    st.error(f"Risk engine failed: {e}")
-    st.stop()
 
-st.header("3. Economic Exposure Engine")
-try:
-    df, cost_report = estimate_expected_cost(df)
-    st.write(f"Cost method: `{cost_report.method}`")
-    for warning in cost_report.warnings:
-        st.warning(warning)
-except Exception as e:
-    st.error(f"Cost engine failed: {e}")
+# =========================
+# O*NET Mapping
+# =========================
 
-st.header("4. O*NET Occupation Intelligence Layer")
-onet_file = st.file_uploader("Optional: Upload O*NET occupation feature table", type=["csv"], key="onet")
+st.header("3. O*NET Occupation Intelligence")
+
 if onet_file is not None:
     onet_ref = pd.read_csv(onet_file)
+
     try:
         df, onet_report = map_to_onet(df, onet_ref)
-        st.metric("O*NET Mapping Coverage", f"{onet_report.coverage:.1%}")
+
+        o1, o2, o3, o4 = st.columns(4)
+
+        o1.metric("Role Column", str(onet_report.role_column))
+        o2.metric("Mapping Coverage", f"{onet_report.coverage:.1%}")
+        o3.metric("Accepted Matches", f"{onet_report.accepted_matches:,}")
+        o4.metric("Review Required", f"{onet_report.review_required_matches:,}")
+
         st.write(onet_report.note)
-        st.write(
-            f"Exact matches: {onet_report.exact_matches:,}; fuzzy review-required matches: {onet_report.fuzzy_matches:,}; unmatched: {onet_report.unmatched:,}."
-        )
+
+        mapping_preview_cols = [
+            col for col in [
+                "employee_id",
+                "job_title",
+                "occupation_code",
+                "matched_onet_title",
+                "matched_onet_code",
+                "onet_match_score",
+                "onet_match_method",
+                "onet_match_status",
+            ]
+            if col in df.columns
+        ]
+
+        st.subheader("O*NET Mapping Preview")
+        st.dataframe(df[mapping_preview_cols].head(50), use_container_width=True)
+
     except Exception as e:
         st.error(f"O*NET mapping failed: {e}")
+
 else:
-    st.info("O*NET mapping skipped. Upload an O*NET reference file to activate occupation intelligence.")
-
-st.header("5. Workforce Segment Exposure")
-possible_segments = [
-    c for c in ["department", "job_title", "occupation_code", "location"]
-    if c in df.columns
-]
-if not possible_segments:
-    st.warning("No segment columns detected.")
-    st.stop()
-
-segment_col = st.selectbox("Choose segmentation variable", possible_segments)
-segment_summary = build_segment_exposure(df, segment_col)
-st.dataframe(segment_summary, use_container_width=True)
-
-if "total_expected_attrition_cost" in segment_summary.columns:
-    plot_df = segment_summary.head(10)
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.barh(plot_df[segment_col].astype(str), plot_df["total_expected_attrition_cost"])
-    ax.set_xlabel("Total Expected Attrition Cost")
-    ax.set_ylabel(segment_col)
-    ax.set_title("Top Segments by Expected Attrition Cost")
-    ax.invert_yaxis()
-    st.pyplot(fig)
-
-st.header("6. Decision-Support Table")
-decision_table = build_decision_support_table(df, segment_col)
-st.dataframe(decision_table, use_container_width=True)
-
-st.header("7. Download Audit Outputs")
-st.download_button(
-    "Download Analyzed Workforce Data",
-    df.to_csv(index=False).encode("utf-8"),
-    file_name="hcrl_analyzed_workforce_data.csv",
-    mime="text/csv",
-)
-st.download_button(
-    "Download Segment Decision-Support Table",
-    decision_table.to_csv(index=False).encode("utf-8"),
-    file_name="hcrl_segment_decision_support.csv",
-    mime="text/csv",
-)
-
-with st.expander("Methodology Notes"):
-    st.write(
-        "HCRL estimates attrition as a probabilistic separation event where outcome data are available. "
-        "Expected cost is only estimated when replacement-cost inputs are supplied directly by the company or derived from company-supplied replacement-cost multipliers. "
-        "O*NET mapping is occupational context and should be confirmed with SOC codes for enterprise deployment."
+    st.info(
+        "No O*NET reference table uploaded. Occupation intelligence, AI exposure, "
+        "SHCI, augmentation, and automation feasibility will be unavailable."
     )
+
+
+# =========================
+# Risk Engine
+# =========================
+
+st.header("4. Attrition Risk Engine")
+
+df, risk_report = estimate_attrition_risk(
+    df,
+    schema_report.model_feature_columns,
+)
+
+r1, r2, r3, r4 = st.columns(4)
+
+r1.metric("Risk Source", risk_report.risk_source)
+r2.metric("Model Used", str(risk_report.model_used))
+r3.metric("Observations", f"{risk_report.n_observations:,}")
+r4.metric("Features", f"{risk_report.n_features:,}")
+
+if risk_report.warnings:
+    st.warning("Risk engine warnings:")
+    for warning in risk_report.warnings:
+        st.write(f"- {warning}")
+
+if risk_report.errors:
+    st.error("Risk engine errors:")
+    for error in risk_report.errors:
+        st.write(f"- {error}")
+
+if "predicted_attrition_probability" in df.columns:
+    valid_risk = pd.to_numeric(
+        df["predicted_attrition_probability"],
+        errors="coerce",
+    ).dropna()
+
+    if not valid_risk.empty:
+        st.metric("Average Predicted Attrition Probability", f"{valid_risk.mean():.1%}")
+    else:
+        st.info("Attrition probabilities are unavailable for this dataset.")
+
+
+# =========================
+# Cost Engine
+# =========================
+
+st.header("5. Economic Exposure Engine")
+
+df, cost_report = estimate_expected_attrition_cost(df)
+
+e1, e2 = st.columns(2)
+
+e1.metric("Cost Source", cost_report.cost_source)
+e2.metric("Rows Analyzed", f"{cost_report.n_observations:,}")
+
+if cost_report.warnings:
+    st.warning("Cost engine warnings:")
+    for warning in cost_report.warnings:
+        st.write(f"- {warning}")
+
+if cost_report.errors:
+    st.error("Cost engine errors:")
+    for error in cost_report.errors:
+        st.write(f"- {error}")
+
+if "expected_attrition_cost" in df.columns:
+    valid_cost = pd.to_numeric(df["expected_attrition_cost"], errors="coerce").dropna()
+
+    if not valid_cost.empty:
+        st.metric("Total Expected Attrition Cost", f"${valid_cost.sum():,.0f}")
+    else:
+        st.info("Expected attrition cost is unavailable until risk and replacement-cost inputs exist.")
+
+
+# =========================
+# Decision Intelligence
+# =========================
+
+st.header("6. Decision Intelligence")
+
+segment_options = [
+    col for col in [
+        "job_title",
+        "department",
+        "location",
+        "matched_onet_title",
+        "occupation_code",
+        "matched_onet_code",
+    ]
+    if col in df.columns
+]
+
+if not segment_options:
+    st.warning("No usable segment column found.")
+else:
+    segment_col = st.selectbox(
+        "Choose workforce segmentation variable",
+        segment_options,
+    )
+
+    decision_table, decision_report = build_segment_decision_table(
+        df,
+        segment_col=segment_col,
+    )
+
+    if decision_report.warnings:
+        st.warning("Decision engine warnings:")
+        for warning in decision_report.warnings:
+            st.write(f"- {warning}")
+
+    if decision_report.errors:
+        st.error("Decision engine errors:")
+        for error in decision_report.errors:
+            st.write(f"- {error}")
+    else:
+        st.metric("Segments Analyzed", f"{decision_report.n_segments:,}")
+        st.dataframe(decision_table, use_container_width=True)
+
+        st.download_button(
+            label="Download Segment Decision Table",
+            data=decision_table.to_csv(index=False).encode("utf-8"),
+            file_name="hcrl_segment_decision_table.csv",
+            mime="text/csv",
+        )
+
+
+# =========================
+# Intervention Economics
+# =========================
+
+st.header("7. Intervention Economics")
+
+if not HAS_INTERVENTION_ENGINE:
+    st.info("Intervention engine file not found yet.")
+elif intervention_file is None:
+    st.info(
+        "Upload an intervention assumptions file to compare retain, retrain, "
+        "augment, redesign, and automate options."
+    )
+
+    st.write("Required columns:")
+
+    st.code(
+        "segment, intervention_type, implementation_cost, expected_gross_benefit"
+    )
+
+else:
+    intervention_df = pd.read_csv(intervention_file)
+
+    intervention_results, intervention_report = evaluate_interventions(
+        intervention_df,
+    )
+
+    if intervention_report.warnings:
+        st.warning("Intervention engine warnings:")
+        for warning in intervention_report.warnings:
+            st.write(f"- {warning}")
+
+    if intervention_report.errors:
+        st.error("Intervention engine errors:")
+        for error in intervention_report.errors:
+            st.write(f"- {error}")
+    else:
+        st.metric("Intervention Options Evaluated", f"{intervention_report.n_options:,}")
+        st.dataframe(intervention_results, use_container_width=True)
+
+        st.download_button(
+            label="Download Intervention Economics Table",
+            data=intervention_results.to_csv(index=False).encode("utf-8"),
+            file_name="hcrl_intervention_economics.csv",
+            mime="text/csv",
+        )
+
+
+# =========================
+# Download Full Dataset
+# =========================
+
+st.header("8. Download Full HCRL Output")
+
+st.download_button(
+    label="Download Full HCRL Analyzed Dataset",
+    data=df.to_csv(index=False).encode("utf-8"),
+    file_name="hcrl_enterprise_analyzed_workforce.csv",
+    mime="text/csv",
+)
+
+
+# =========================
+# Methodology
+# =========================
+
+with st.expander("Methodology and Limitations"):
+    st.write(
+        """
+HCRL is a quantitative workforce transformation intelligence platform.
+
+The system separates workforce data validation, occupation mapping, attrition
+risk estimation, economic exposure modeling, decision intelligence, and
+intervention economics into independent modules.
+
+The platform does not make firing recommendations.
+
+Current enterprise limitations:
+- Company-specific attrition prediction requires historical separation outcomes.
+- If no historical attrition outcomes exist, an external labor-market baseline
+  risk model is required.
+- Expected cost estimation requires replacement-cost inputs or an externally
+  calibrated replacement-cost model.
+- Intervention ROI requires company-supplied or externally validated cost and
+  benefit assumptions.
+- O*NET mapping should be reviewed when match status is review_required.
+        """
+    )
+
+st.markdown("---")
+st.caption("Human Capital Risk Lab | Enterprise Workforce Transformation Intelligence")
