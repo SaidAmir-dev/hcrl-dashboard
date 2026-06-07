@@ -486,27 +486,27 @@ strategy_summary = (
     .sort_values("n_workers", ascending=False)
     )
 
-    display_strategy = strategy_summary.copy()
-    display_strategy["avg_ai_exposure"] = display_strategy["avg_ai_exposure"].map(lambda x: f"{x:.2f}")
-    display_strategy["avg_attrition_risk"] = display_strategy["avg_attrition_risk"].map(lambda x: f"{x:.1%}")
-    display_strategy["avg_stressed_cost"] = display_strategy["avg_stressed_cost"].map(lambda x: f"${x:,.0f}")
+display_strategy = strategy_summary.copy()
+display_strategy["avg_ai_exposure"] = display_strategy["avg_ai_exposure"].map(lambda x: f"{x:.2f}")
+display_strategy["avg_attrition_risk"] = display_strategy["avg_attrition_risk"].map(lambda x: f"{x:.1%}")
+display_strategy["avg_stressed_cost"] = display_strategy["avg_stressed_cost"].map(lambda x: f"${x:,.0f}")
 
-    st.subheader("Workforce Strategy Summary")
-    st.dataframe(display_strategy, use_container_width=True)
+st.subheader("Workforce Strategy Summary")
+st.dataframe(display_strategy, use_container_width=True)
 
-    st.subheader("Role-Level AI Strategy Table")
+st.subheader("Role-Level AI Strategy Table")
 
-    role_ai_summary = (
-        mapped_df.groupby(role_col)
-        .agg(
-            matched_onet_title=("matched_onet_title", "first"),
-            workforce_strategy_category=("workforce_strategy_category", "first"),
-            avg_ai_exposure=("ai_exposure_score", "mean"),
-            avg_attrition_risk=("predicted_risk", "mean"),
-            avg_stressed_cost=("stressed_expected_cost", "mean"),
-            n_workers=(role_col, "count")
-        )
-        .sort_values("avg_ai_exposure", ascending=False)
+role_ai_summary = (
+    mapped_df.groupby(role_col)
+    .agg(
+        matched_onet_title=("matched_onet_title", "first"),
+        workforce_strategy_category=("workforce_strategy_category", "first"),
+        avg_ai_exposure=("ai_exposure_score", "mean"),
+        avg_attrition_risk=("predicted_risk", "mean"),
+        avg_stressed_cost=("stressed_expected_cost", "mean"),
+        n_workers=(role_col, "count")
+    )
+    .sort_values("avg_ai_exposure", ascending=False)
     )
 
     display_role_ai = role_ai_summary.copy()
