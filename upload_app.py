@@ -154,7 +154,7 @@ ibm_to_onet_role_map = {
     "Research Scientist": "Computer and Information Research Scientists",
     "Laboratory Technician": "Medical and Clinical Laboratory Technicians",
     "Manufacturing Director": "Industrial Production Managers",
-    "Healthcare Representative": None,
+    "Healthcare Representative": "Sales Representatives, Wholesale and Manufacturing, Technical and Scientific Products",
     "Manager": "General and Operations Managers",
     "Research Director": "Natural Sciences Managers",
     "Human Resources": "Human Resources Managers"
