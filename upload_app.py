@@ -509,10 +509,10 @@ role_ai_summary = (
     .sort_values("avg_ai_exposure", ascending=False)
     )
 
-    display_role_ai = role_ai_summary.copy()
-    display_role_ai["avg_ai_exposure"] = display_role_ai["avg_ai_exposure"].map(lambda x: f"{x:.2f}")
-    display_role_ai["avg_attrition_risk"] = display_role_ai["avg_attrition_risk"].map(lambda x: f"{x:.1%}")
-    display_role_ai["avg_stressed_cost"] = display_role_ai["avg_stressed_cost"].map(lambda x: f"${x:,.0f}")
+display_role_ai = role_ai_summary.copy()
+display_role_ai["avg_ai_exposure"] = display_role_ai["avg_ai_exposure"].map(lambda x: f"{x:.2f}")
+display_role_ai["avg_attrition_risk"] = display_role_ai["avg_attrition_risk"].map(lambda x: f"{x:.1%}")
+display_role_ai["avg_stressed_cost"] = display_role_ai["avg_stressed_cost"].map(lambda x: f"${x:,.0f}")
 
     st.dataframe(display_role_ai, use_container_width=True)
 
