@@ -292,6 +292,16 @@ try:
         regex=False
     )
     .str.replace(
+        "stability Redesign ",
+        "stability. Redesign ",
+        regex=False
+    ) 
+    .str.replace(
+        "experience This role ",
+        "experience. This role ",
+        regex=False
+    )           
+    .str.replace(
         "stability In parallel",
         "stability. In parallel",
         regex=False
