@@ -100,12 +100,29 @@ try:
 
     o1, o2, o3, o4 = st.columns(4)
 
-    o1.metric("Role Column", str(onet_report.role_column))
-    o2.metric("Mapping Coverage", f"{onet_report.coverage:.1%}")
-    o3.metric("Accepted Matches", f"{onet_report.accepted_matches:,}")
-    o4.metric("Review Required", f"{onet_report.review_required_matches:,}")
+total_rows = len(df)
 
-    st.write(onet_report.note)
+accepted_coverage = (
+    onet_report.accepted_matches / total_rows
+    if total_rows > 0
+    else 0
+)
+
+review_share = (
+    onet_report.review_required_matches / total_rows
+    if total_rows > 0
+    else 0
+)
+
+o1.metric("Role Column", str(onet_report.role_column))
+o2.metric("Accepted Coverage", f"{accepted_coverage:.1%}")
+o3.metric("Accepted Matches", f"{onet_report.accepted_matches:,}")
+o4.metric("Review Queue", f"{onet_report.review_required_matches:,} ({review_share:.1%})")
+
+st.write(
+    "Accepted coverage includes only deterministic matches. "
+    "Review queue contains candidate mappings that require human validation before enterprise reporting."
+)
 
     debug_cols = [
         "employee_id",
