@@ -209,7 +209,7 @@ TITLE_CUE_RULES: Dict[str, List[str]] = {
 }
 
 
-SPECIFIC_TITLE_CANDIDATES = {
+SPECIFIC_TITLE_CANDIDATES: Dict[str, List[str]] = {
     "sales executive": [
         "Sales Managers",
         "Sales Representatives, Wholesale and Manufacturing, Except Technical and Scientific Products",
@@ -227,6 +227,12 @@ SPECIFIC_TITLE_CANDIDATES = {
         "Biochemists and Biophysicists",
         "Chemists",
         "Natural Sciences Managers",
+    ],
+
+    "research director": [
+        "Natural Sciences Managers",
+        "Medical and Health Services Managers",
+        "General and Operations Managers",
     ],
 
     "laboratory technician": [
