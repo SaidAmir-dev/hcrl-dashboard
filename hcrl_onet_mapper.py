@@ -1,18 +1,4 @@
-"""HCRL O*NET occupation resolver.
-
-Generalized occupation mapping for any company.
-
-Principle:
-Do NOT rely on raw fuzzy title matching alone.
-
-Use:
-1. exact O*NET-SOC code match
-2. exact title match
-3. title normalization
-4. occupation candidate generation
-5. candidate-constrained fuzzy matching
-6. confidence/status audit layer
-"""
+"""HCRL O*NET occupation resolver."""
 
 from __future__ import annotations
 
@@ -71,10 +57,8 @@ def _token_set(x: str) -> set:
 def _token_overlap_score(a: str, b: str) -> float:
     a_tokens = _token_set(a)
     b_tokens = _token_set(b)
-
     if not a_tokens or not b_tokens:
         return 0.0
-
     return len(a_tokens & b_tokens) / len(a_tokens | b_tokens)
 
 
@@ -107,7 +91,6 @@ def _detect_role_column(df: pd.DataFrame) -> Optional[str]:
 def _prepare_reference(
     onet_reference: pd.DataFrame,
 ) -> Tuple[pd.DataFrame, str, Optional[str]]:
-
     ref = onet_reference.copy()
 
     title_col = "Title" if "Title" in ref.columns else None
@@ -130,13 +113,10 @@ def _exact_code_match(
     ref: pd.DataFrame,
     code_col: Optional[str],
 ) -> Optional[pd.Series]:
-
     if code_col is None:
         return None
 
-    value_str = str(value).strip()
-    matches = ref[ref[code_col].astype(str).str.strip() == value_str]
-
+    matches = ref[ref[code_col].astype(str).str.strip() == str(value).strip()]
     if matches.empty:
         return None
 
@@ -148,7 +128,6 @@ def _exact_title_match(
     ref: pd.DataFrame,
     title_col: str,
 ) -> Optional[pd.Series]:
-
     value_clean = _clean(value)
     value_compact = _compact(value)
 
@@ -168,10 +147,8 @@ def _best_fuzzy_title_match(
     ref: pd.DataFrame,
     title_col: str,
 ) -> Tuple[pd.Series, float]:
-
     scores = ref[title_col].apply(lambda title: _combined_similarity(value, title))
     best_idx = scores.idxmax()
-
     return ref.loc[best_idx], float(scores.loc[best_idx])
 
 
@@ -180,7 +157,7 @@ def _classify_match(score: float, method: str) -> str:
         "exact_soc_code",
         "exact_title",
         "normalized_exact_title",
-        "candidate_exact_title",
+        "occupation_alias",
     }:
         return "accepted"
 
@@ -199,7 +176,6 @@ def _base_unmatched_return(
     normalized,
     candidate_titles: List[str],
 ) -> Dict[str, object]:
-
     return {
         "matched_onet_title": pd.NA,
         "matched_onet_code": pd.NA,
@@ -214,6 +190,46 @@ def _base_unmatched_return(
     }
 
 
+def _accepted_return(
+    match_row,
+    title_col: str,
+    code_col: Optional[str],
+    score: float,
+    method: str,
+    normalized,
+    candidate_titles=None,
+) -> Dict[str, object]:
+    return {
+        "matched_onet_title": match_row[title_col],
+        "matched_onet_code": match_row.get(code_col, pd.NA) if code_col else pd.NA,
+        "onet_match_score": score,
+        "onet_match_method": method,
+        "onet_match_status": _classify_match(score, method),
+        "normalized_title": normalized.canonical_title,
+        "title_function": normalized.detected_function,
+        "title_level": normalized.detected_level,
+        "title_normalization_method": normalized.normalization_method,
+        "candidate_titles": (
+            " | ".join(candidate_titles)
+            if isinstance(candidate_titles, list) and candidate_titles
+            else pd.NA
+        ),
+    }
+
+
+def _alias_match(
+    raw_title,
+    ref: pd.DataFrame,
+    title_col: str,
+) -> Optional[pd.Series]:
+    alias_title = OCCUPATION_ALIASES.get(_clean(raw_title))
+
+    if alias_title is None:
+        return None
+
+    return _exact_title_match(alias_title, ref, title_col)
+
+
 def _map_single_role(
     value,
     role_col: str,
@@ -222,7 +238,6 @@ def _map_single_role(
     code_col: Optional[str],
     department_value=None,
 ) -> Dict[str, object]:
-
     normalized = normalize_title(value, department_value)
 
     if pd.isna(value) or str(value).strip() == "":
@@ -235,36 +250,25 @@ def _map_single_role(
 
     if role_col in {"occupation_code", "matched_onet_code", "soc_code"}:
         code_match = _exact_code_match(str(value), ref, code_col)
-
         if code_match is not None:
-            return {
-                "matched_onet_title": code_match[title_col],
-                "matched_onet_code": code_match.get(code_col, pd.NA),
-                "onet_match_score": 1.0,
-                "onet_match_method": "exact_soc_code",
-                "onet_match_status": "accepted",
-                "normalized_title": normalized.canonical_title,
-                "title_function": normalized.detected_function,
-                "title_level": normalized.detected_level,
-                "title_normalization_method": normalized.normalization_method,
-                "candidate_titles": pd.NA,
-            }
+            return _accepted_return(
+                code_match, title_col, code_col, 1.0,
+                "exact_soc_code", normalized
+            )
 
     title_match = _exact_title_match(str(value), ref, title_col)
-
     if title_match is not None:
-        return {
-            "matched_onet_title": title_match[title_col],
-            "matched_onet_code": title_match.get(code_col, pd.NA),
-            "onet_match_score": 1.0,
-            "onet_match_method": "exact_title",
-            "onet_match_status": "accepted",
-            "normalized_title": normalized.canonical_title,
-            "title_function": normalized.detected_function,
-            "title_level": normalized.detected_level,
-            "title_normalization_method": normalized.normalization_method,
-            "candidate_titles": pd.NA,
-        }
+        return _accepted_return(
+            title_match, title_col, code_col, 1.0,
+            "exact_title", normalized
+        )
+
+    alias_row = _alias_match(value, ref, title_col)
+    if alias_row is not None:
+        return _accepted_return(
+            alias_row, title_col, code_col, 0.95,
+            "occupation_alias", normalized
+        )
 
     role_for_matching = (
         normalized.canonical_title
@@ -273,20 +277,12 @@ def _map_single_role(
     )
 
     normalized_title_match = _exact_title_match(role_for_matching, ref, title_col)
-
     if normalized_title_match is not None and normalized.canonical_title is not None:
-        return {
-            "matched_onet_title": normalized_title_match[title_col],
-            "matched_onet_code": normalized_title_match.get(code_col, pd.NA),
-            "onet_match_score": 1.0,
-            "onet_match_method": "normalized_exact_title",
-            "onet_match_status": "accepted",
-            "normalized_title": normalized.canonical_title,
-            "title_function": normalized.detected_function,
-            "title_level": normalized.detected_level,
-            "title_normalization_method": normalized.normalization_method,
-            "candidate_titles": normalized.canonical_title,
-        }
+        return _accepted_return(
+            normalized_title_match, title_col, code_col, 1.0,
+            "normalized_exact_title", normalized,
+            candidate_titles=[normalized.canonical_title],
+        )
 
     candidate_titles = generate_candidate_titles(
         job_title=value,
@@ -322,25 +318,21 @@ def _map_single_role(
             candidate_titles=candidate_titles,
         )
 
-    return {
-        "matched_onet_title": best_match[title_col],
-        "matched_onet_code": best_match.get(code_col, pd.NA),
-        "onet_match_score": best_score,
-        "onet_match_method": method,
-        "onet_match_status": status,
-        "normalized_title": normalized.canonical_title,
-        "title_function": normalized.detected_function,
-        "title_level": normalized.detected_level,
-        "title_normalization_method": normalized.normalization_method,
-        "candidate_titles": " | ".join(candidate_titles) if candidate_titles else pd.NA,
-    }
+    return _accepted_return(
+        best_match,
+        title_col,
+        code_col,
+        best_score,
+        method,
+        normalized,
+        candidate_titles=candidate_titles,
+    )
 
 
 def map_to_onet(
     df: pd.DataFrame,
     onet_reference: pd.DataFrame,
 ) -> Tuple[pd.DataFrame, OnetMappingReport]:
-
     out = df.copy()
     role_col = _detect_role_column(out)
 
@@ -370,7 +362,6 @@ def map_to_onet(
     ref, title_col, code_col = _prepare_reference(onet_reference)
 
     department_col = "department" if "department" in out.columns else None
-
     mapped_rows: List[Dict[str, object]] = []
 
     for idx, value in out[role_col].items():
@@ -396,12 +387,7 @@ def map_to_onet(
 
     exact = int(
         out["onet_match_method"]
-        .isin([
-            "exact_title",
-            "exact_soc_code",
-            "normalized_exact_title",
-            "candidate_exact_title",
-        ])
+        .isin(["exact_title", "exact_soc_code", "normalized_exact_title", "occupation_alias"])
         .sum()
     )
 
@@ -427,9 +413,7 @@ def map_to_onet(
         exact_matches=exact,
         fuzzy_matches=fuzzy,
         note=(
-            "Occupation mapping uses exact matching, title normalization, "
-            "candidate occupation generation, candidate-constrained fuzzy scoring, "
-            "and audit status labels. Accepted matches can be used automatically. "
-            "Review-required matches should be inspected before enterprise reporting."
+            "Occupation mapping uses exact matching, title normalization, occupation aliases, "
+            "candidate occupation generation, candidate-constrained fuzzy scoring, and audit labels."
         ),
     )
