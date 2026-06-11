@@ -31,9 +31,10 @@ CANDIDATE_TITLE_RULES: Dict[str, List[str]] = {
     "research_science": [
         "Medical Scientists",
         "Biological Scientists",
+        "Biochemists and Biophysicists",
         "Life Scientists, All Other",
-        "Natural Sciences Managers",
         "Clinical Research Coordinators",
+        "Natural Sciences Managers",
         "Chemists",
         "Materials Scientists",
     ],
@@ -41,6 +42,7 @@ CANDIDATE_TITLE_RULES: Dict[str, List[str]] = {
     "laboratory": [
         "Medical and Clinical Laboratory Technologists",
         "Medical and Clinical Laboratory Technicians",
+        "Clinical Laboratory Technologists and Technicians",
         "Biological Technicians",
         "Chemical Technicians",
         "Life, Physical, and Social Science Technicians, All Other",
@@ -55,10 +57,11 @@ CANDIDATE_TITLE_RULES: Dict[str, List[str]] = {
 
     "manufacturing": [
         "Industrial Production Managers",
-        "Production, Planning, and Expediting Clerks",
         "First-Line Supervisors of Production and Operating Workers",
-        "Industrial Engineers",
         "Manufacturing Engineers",
+        "Industrial Engineers",
+        "Production, Planning, and Expediting Clerks",
+        "General and Operations Managers",
     ],
 
     "healthcare": [
@@ -67,6 +70,7 @@ CANDIDATE_TITLE_RULES: Dict[str, List[str]] = {
         "Healthcare Social Workers",
         "Health Information Technologists and Medical Registrars",
         "Medical Secretaries and Administrative Assistants",
+        "Customer Service Representatives",
     ],
 
     "operations": [
@@ -74,6 +78,7 @@ CANDIDATE_TITLE_RULES: Dict[str, List[str]] = {
         "Operations Research Analysts",
         "Business Operations Specialists, All Other",
         "Project Management Specialists",
+        "First-Line Supervisors of Office and Administrative Support Workers",
     ],
 
     "software_it": [
@@ -109,37 +114,162 @@ CANDIDATE_TITLE_RULES: Dict[str, List[str]] = {
 
 TITLE_CUE_RULES: Dict[str, List[str]] = {
     "laboratory": [
-        "laboratory", "lab", "technician", "clinical laboratory"
+        "laboratory",
+        "lab",
+        "lab technician",
+        "laboratory technician",
+        "clinical laboratory",
+        "medical laboratory",
+        "technician",
     ],
+
     "healthcare": [
-        "healthcare", "health care", "patient", "medical representative", "clinical"
+        "healthcare",
+        "health care",
+        "patient",
+        "medical representative",
+        "health representative",
+        "clinical",
     ],
+
     "research_science": [
-        "research", "scientist", "r&d", "science"
+        "research scientist",
+        "research director",
+        "principal scientist",
+        "senior scientist",
+        "scientist",
+        "research",
+        "r&d",
+        "science",
     ],
+
     "sales": [
-        "sales", "account executive", "sales representative", "business development"
+        "sales",
+        "account executive",
+        "sales executive",
+        "sales representative",
+        "business development",
+        "account manager",
     ],
+
     "human_resources": [
-        "human resources", "hr", "talent", "recruit"
+        "human resources",
+        "hr",
+        "talent",
+        "recruit",
+        "people operations",
     ],
+
     "manufacturing": [
-        "manufacturing", "production", "plant", "industrial"
+        "manufacturing director",
+        "manufacturing manager",
+        "manufacturing",
+        "production director",
+        "production manager",
+        "production",
+        "plant manager",
+        "industrial",
     ],
+
     "operations": [
-        "operations", "general manager", "manager"
+        "operations",
+        "general manager",
+        "business operations",
+        "manager",
     ],
+
     "software_it": [
-        "software", "developer", "data", "programmer", "it"
+        "software",
+        "developer",
+        "data",
+        "programmer",
+        "it",
+        "information technology",
     ],
+
     "finance": [
-        "finance", "financial", "accounting", "accountant"
+        "finance",
+        "financial",
+        "accounting",
+        "accountant",
     ],
+
     "marketing": [
-        "marketing", "brand", "advertising"
+        "marketing",
+        "brand",
+        "advertising",
     ],
+
     "customer_service": [
-        "customer service", "customer support", "client service"
+        "customer service",
+        "customer support",
+        "client service",
+        "support",
+    ],
+}
+
+
+SPECIFIC_TITLE_CANDIDATES: Dict[str, List[str]] = {
+    "sales executive": [
+        "Sales Managers",
+        "Sales Representatives, Wholesale and Manufacturing",
+        "Sales Representatives, Services",
+    ],
+
+    "sales representative": [
+        "Sales Representatives, Wholesale and Manufacturing",
+        "Sales Representatives, Wholesale and Manufacturing, Technical and Scientific Products",
+        "Sales Representatives, Services",
+    ],
+
+    "research scientist": [
+        "Medical Scientists",
+        "Biological Scientists",
+        "Biochemists and Biophysicists",
+        "Life Scientists, All Other",
+        "Chemists",
+        "Materials Scientists",
+    ],
+
+    "research director": [
+        "Natural Sciences Managers",
+        "Medical and Health Services Managers",
+        "General and Operations Managers",
+    ],
+
+    "laboratory technician": [
+        "Medical and Clinical Laboratory Technicians",
+        "Medical and Clinical Laboratory Technologists",
+        "Clinical Laboratory Technologists and Technicians",
+        "Biological Technicians",
+        "Chemical Technicians",
+    ],
+
+    "manufacturing director": [
+        "Industrial Production Managers",
+        "First-Line Supervisors of Production and Operating Workers",
+        "Manufacturing Engineers",
+        "General and Operations Managers",
+    ],
+
+    "healthcare representative": [
+        "Patient Representatives",
+        "Medical Secretaries and Administrative Assistants",
+        "Customer Service Representatives",
+        "Health Information Technologists and Medical Registrars",
+    ],
+
+    "human resources": [
+        "Human Resources Specialists",
+        "Human Resources Managers",
+    ],
+
+    "manager": [
+        "General and Operations Managers",
+        "First-Line Supervisors of Office and Administrative Support Workers",
+        "Sales Managers",
+        "Human Resources Managers",
+        "Industrial Production Managers",
     ],
 }
 
@@ -164,12 +294,10 @@ def infer_candidate_family(
 
     text = _clean(f"{job_title} {department or ''}")
 
-    # Specific cues first
     for family, cues in TITLE_CUE_RULES.items():
         if any(_clean(cue) in text for cue in cues):
             return family
 
-    # Fallback to normalized function
     if detected_function in CANDIDATE_TITLE_RULES:
         return detected_function
 
@@ -181,6 +309,12 @@ def generate_candidate_titles(
     detected_function: Optional[str] = None,
     department: object = None,
 ) -> List[str]:
+
+    text = _clean(job_title)
+
+    for specific_title, candidates in SPECIFIC_TITLE_CANDIDATES.items():
+        if _clean(specific_title) in text:
+            return candidates
 
     family = infer_candidate_family(
         job_title=job_title,
