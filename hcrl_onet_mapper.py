@@ -241,18 +241,6 @@ def _map_single_role(
             normalized=normalized,
         )
 
-    alias_row = _alias_match(value, ref, title_col)
-
-    if alias_row is not None:
-        return _matched_return(
-            alias_row,
-            title_col,
-            code_col,
-            score=pd.NA,
-            method="occupation_alias_review_required",
-            status="review_required",
-            normalized=normalized,
-        )
 
     role_for_matching = (
         normalized.canonical_title
