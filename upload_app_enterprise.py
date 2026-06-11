@@ -34,17 +34,12 @@ st.write(
 st.divider()
 
 
-# =========================
-# Uploads
-# =========================
-
 st.header("1. Upload Workforce Data")
 
 workforce_file = st.file_uploader(
     "Upload company workforce CSV",
     type=["csv"],
 )
-
 
 if workforce_file is None:
     st.info("Upload a company workforce file to begin.")
@@ -59,10 +54,6 @@ st.write(f"Columns uploaded: {len(raw_df.columns):,}")
 with st.expander("Preview uploaded data"):
     st.dataframe(raw_df.head(20), use_container_width=True)
 
-
-# =========================
-# Schema Validation
-# =========================
 
 st.header("2. HCRL Schema Validation")
 
@@ -101,10 +92,6 @@ if schema_report.errors:
     st.stop()
 
 
-# =========================
-# O*NET Mapping
-# =========================
-
 st.header("3. O*NET Occupation Intelligence")
 
 try:
@@ -120,30 +107,33 @@ try:
 
     st.write(onet_report.note)
 
-    mapping_preview_cols = [
-        col for col in [
-            "employee_id",
-            "job_title",
-            "occupation_code",
-            "matched_onet_title",
-            "matched_onet_code",
-            "onet_match_score",
-            "onet_match_method",
-            "onet_match_status",
-        ]
-        if col in df.columns
+    debug_cols = [
+        "employee_id",
+        "job_title",
+        "department",
+        "normalized_title",
+        "title_function",
+        "title_level",
+        "title_normalization_method",
+        "candidate_titles",
+        "matched_onet_title",
+        "matched_onet_code",
+        "onet_match_score",
+        "onet_match_method",
+        "onet_match_status",
     ]
 
-    st.subheader("O*NET Mapping Preview")
-    st.dataframe(df[mapping_preview_cols].head(50), use_container_width=True)
+    available_debug_cols = [c for c in debug_cols if c in df.columns]
+
+    st.subheader("O*NET Mapping Debug Table")
+    st.dataframe(
+        df[available_debug_cols].head(150),
+        use_container_width=True,
+    )
 
 except Exception as e:
     st.error(f"O*NET mapping failed: {e}")
 
-
-# =========================
-# Task Intelligence
-# =========================
 
 st.header("4. Task Intelligence")
 
@@ -195,10 +185,6 @@ except Exception as e:
     st.error(f"Task Intelligence Engine failed: {e}")
 
 
-# =========================
-# Risk Engine
-# =========================
-
 st.header("5. Attrition Risk Engine")
 
 df, risk_report = estimate_attrition_risk(
@@ -238,10 +224,6 @@ if "predicted_attrition_probability" in df.columns:
         st.info("Attrition probabilities are unavailable for this dataset.")
 
 
-# =========================
-# Cost Engine
-# =========================
-
 st.header("6. Economic Exposure Engine")
 
 df, cost_report = estimate_expected_attrition_cost(df)
@@ -275,10 +257,6 @@ if "expected_attrition_cost" in df.columns:
             "inputs exist."
         )
 
-
-# =========================
-# Decision Intelligence
-# =========================
 
 st.header("7. Decision Intelligence")
 
@@ -328,10 +306,6 @@ else:
         )
 
 
-# =========================
-# Download Full Dataset
-# =========================
-
 st.header("9. Download Full HCRL Output")
 
 st.download_button(
@@ -341,10 +315,6 @@ st.download_button(
     mime="text/csv",
 )
 
-
-# =========================
-# Methodology
-# =========================
 
 with st.expander("Methodology and Limitations"):
     st.write(
