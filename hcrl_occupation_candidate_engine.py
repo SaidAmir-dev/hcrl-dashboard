@@ -209,53 +209,44 @@ TITLE_CUE_RULES: Dict[str, List[str]] = {
 }
 
 
-SPECIFIC_TITLE_CANDIDATES: Dict[str, List[str]] = {
+SPECIFIC_TITLE_CANDIDATES = {
     "sales executive": [
         "Sales Managers",
-        "Sales Representatives, Wholesale and Manufacturing",
-        "Sales Representatives, Services",
+        "Sales Representatives, Wholesale and Manufacturing, Except Technical and Scientific Products",
+        "Sales Representatives, Wholesale and Manufacturing, Technical and Scientific Products",
     ],
 
     "sales representative": [
-        "Sales Representatives, Wholesale and Manufacturing",
+        "Sales Representatives, Wholesale and Manufacturing, Except Technical and Scientific Products",
         "Sales Representatives, Wholesale and Manufacturing, Technical and Scientific Products",
-        "Sales Representatives, Services",
     ],
 
     "research scientist": [
-        "Medical Scientists",
-        "Biological Scientists",
+        "Medical Scientists, Except Epidemiologists",
+        "Biological Scientists, All Other",
         "Biochemists and Biophysicists",
-        "Life Scientists, All Other",
         "Chemists",
-        "Materials Scientists",
-    ],
-
-    "research director": [
         "Natural Sciences Managers",
-        "Medical and Health Services Managers",
-        "General and Operations Managers",
     ],
 
     "laboratory technician": [
-        "Medical and Clinical Laboratory Technicians",
-        "Medical and Clinical Laboratory Technologists",
         "Clinical Laboratory Technologists and Technicians",
         "Biological Technicians",
         "Chemical Technicians",
+        "Life, Physical, and Social Science Technicians, All Other",
     ],
 
     "manufacturing director": [
         "Industrial Production Managers",
         "First-Line Supervisors of Production and Operating Workers",
-        "Manufacturing Engineers",
+        "Industrial Engineers",
         "General and Operations Managers",
     ],
 
     "healthcare representative": [
         "Patient Representatives",
-        "Medical Secretaries and Administrative Assistants",
         "Customer Service Representatives",
+        "Medical Secretaries and Administrative Assistants",
         "Health Information Technologists and Medical Registrars",
     ],
 
@@ -266,7 +257,6 @@ SPECIFIC_TITLE_CANDIDATES: Dict[str, List[str]] = {
 
     "manager": [
         "General and Operations Managers",
-        "First-Line Supervisors of Office and Administrative Support Workers",
         "Sales Managers",
         "Human Resources Managers",
         "Industrial Production Managers",
