@@ -1,28 +1,17 @@
-"""HCRL economic exposure engine.
-
-This module converts attrition probabilities into expected workforce cost exposure.
-
-Core formula:
-    Expected Attrition Cost = P(separation) * Replacement Cost
-
-Replacement cost can come from:
-1. company-supplied replacement_cost
-2. company-supplied replacement_cost_multiplier * annual_wage
-3. later: externally calibrated role-market replacement cost model
-
-HCRL must not silently invent replacement cost multipliers.
-"""
+"""HCRL economic exposure engine."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import pandas as pd
 
+from hcrl_role_market_cost_engine import estimate_role_market_replacement_cost
+
 
 @dataclass
-class CostEngineReport:
+class CostReport:
     cost_source: str
     n_observations: int
     warnings: List[str]
@@ -31,7 +20,7 @@ class CostEngineReport:
 
 def estimate_expected_attrition_cost(
     df: pd.DataFrame,
-) -> Tuple[pd.DataFrame, CostEngineReport]:
+) -> Tuple[pd.DataFrame, CostReport]:
 
     out = df.copy()
     warnings: List[str] = []
@@ -39,12 +28,10 @@ def estimate_expected_attrition_cost(
 
     if "predicted_attrition_probability" not in out.columns:
         errors.append(
-            "Predicted attrition probability is missing. Expected cost cannot be estimated."
+            "predicted_attrition_probability is required before economic exposure can be estimated."
         )
-        out["expected_attrition_cost"] = pd.NA
-
-        return out, CostEngineReport(
-            cost_source="unavailable_no_risk_probability",
+        return out, CostReport(
+            cost_source="cost_unavailable_no_risk",
             n_observations=len(out),
             warnings=warnings,
             errors=errors,
@@ -55,155 +42,48 @@ def estimate_expected_attrition_cost(
         errors="coerce",
     )
 
-    if out["predicted_attrition_probability"].dropna().empty:
-        errors.append(
-            "Predicted attrition probability exists but contains no usable numeric values."
-        )
-        out["expected_attrition_cost"] = pd.NA
+    if "replacement_cost" not in out.columns:
+        out, market_report = estimate_role_market_replacement_cost(out)
 
-        return out, CostEngineReport(
-            cost_source="unavailable_invalid_risk_probability",
-            n_observations=len(out),
-            warnings=warnings,
-            errors=errors,
-        )
+        warnings.extend(market_report.warnings)
+        errors.extend(market_report.errors)
 
-    # Case 1: company gives direct replacement cost estimate
-    if "replacement_cost" in out.columns:
+        if market_report.errors:
+            return out, CostReport(
+                cost_source=market_report.cost_source,
+                n_observations=len(out),
+                warnings=warnings,
+                errors=errors,
+            )
+
+        cost_source = market_report.cost_source
+    else:
         out["replacement_cost"] = pd.to_numeric(
             out["replacement_cost"],
             errors="coerce",
         )
+        cost_source = "company_supplied_replacement_cost"
 
-        if out["replacement_cost"].dropna().empty:
-            errors.append(
-                "Replacement cost field exists but contains no usable numeric values."
-            )
-            out["expected_attrition_cost"] = pd.NA
-
-            return out, CostEngineReport(
-                cost_source="unavailable_invalid_replacement_cost",
-                n_observations=len(out),
-                warnings=warnings,
-                errors=errors,
-            )
-
-        if out["replacement_cost"].dropna().lt(0).any():
-            errors.append("Replacement cost cannot contain negative values.")
-            out["expected_attrition_cost"] = pd.NA
-
-            return out, CostEngineReport(
-                cost_source="invalid_replacement_cost",
-                n_observations=len(out),
-                warnings=warnings,
-                errors=errors,
-            )
-
-        out["expected_attrition_cost"] = (
-            out["predicted_attrition_probability"] * out["replacement_cost"]
-        )
-
-        warnings.append(
-            "Expected attrition cost estimated using company-supplied replacement cost."
-        )
-
-        return out, CostEngineReport(
-            cost_source="company_supplied_replacement_cost",
-            n_observations=len(out),
-            warnings=warnings,
-            errors=errors,
-        )
-
-    # Case 2: company gives replacement multiplier and wage
-    if "replacement_cost_multiplier" in out.columns and "annual_wage" in out.columns:
-        out["replacement_cost_multiplier"] = pd.to_numeric(
-            out["replacement_cost_multiplier"],
-            errors="coerce",
-        )
-        out["annual_wage"] = pd.to_numeric(
-            out["annual_wage"],
-            errors="coerce",
-        )
-
-        if out["replacement_cost_multiplier"].dropna().empty:
-            errors.append(
-                "Replacement cost multiplier exists but contains no usable numeric values."
-            )
-            out["expected_attrition_cost"] = pd.NA
-
-            return out, CostEngineReport(
-                cost_source="unavailable_invalid_multiplier",
-                n_observations=len(out),
-                warnings=warnings,
-                errors=errors,
-            )
-
-        if out["annual_wage"].dropna().empty:
-            errors.append(
-                "Annual wage exists but contains no usable numeric values."
-            )
-            out["expected_attrition_cost"] = pd.NA
-
-            return out, CostEngineReport(
-                cost_source="unavailable_invalid_wage",
-                n_observations=len(out),
-                warnings=warnings,
-                errors=errors,
-            )
-
-        if out["replacement_cost_multiplier"].dropna().lt(0).any():
-            errors.append("Replacement cost multiplier cannot contain negative values.")
-            out["expected_attrition_cost"] = pd.NA
-
-            return out, CostEngineReport(
-                cost_source="invalid_multiplier",
-                n_observations=len(out),
-                warnings=warnings,
-                errors=errors,
-            )
-
-        if out["annual_wage"].dropna().lt(0).any():
-            errors.append("Annual wage cannot contain negative values.")
-            out["expected_attrition_cost"] = pd.NA
-
-            return out, CostEngineReport(
-                cost_source="invalid_wage",
-                n_observations=len(out),
-                warnings=warnings,
-                errors=errors,
-            )
-
-        out["replacement_cost"] = (
-            out["replacement_cost_multiplier"] * out["annual_wage"]
-        )
-
-        out["expected_attrition_cost"] = (
-            out["predicted_attrition_probability"] * out["replacement_cost"]
-        )
-
-        warnings.append(
-            "Expected attrition cost estimated using company-supplied replacement cost multiplier."
-        )
-
-        return out, CostEngineReport(
-            cost_source="company_supplied_replacement_multiplier",
-            n_observations=len(out),
-            warnings=warnings,
-            errors=errors,
-        )
-
-    # Case 3: no defensible replacement-cost source yet
-    out["replacement_cost"] = pd.NA
-    out["expected_attrition_cost"] = pd.NA
-
-    warnings.append(
-        "No company-supplied replacement cost or replacement cost multiplier detected. "
-        "HCRL will not fabricate replacement costs. Next architecture step: build "
-        "externally calibrated role-market replacement cost model."
+    out["expected_attrition_cost"] = (
+        out["predicted_attrition_probability"] * out["replacement_cost"]
     )
 
-    return out, CostEngineReport(
-        cost_source="external_replacement_cost_model_required",
+    if "replacement_cost_low" in out.columns:
+        out["expected_attrition_cost_low"] = (
+            out["predicted_attrition_probability"] * out["replacement_cost_low"]
+        )
+
+    if "replacement_cost_high" in out.columns:
+        out["expected_attrition_cost_high"] = (
+            out["predicted_attrition_probability"] * out["replacement_cost_high"]
+        )
+
+    warnings.append(
+        "Expected attrition cost is a decision-support estimate, not an audited accounting loss."
+    )
+
+    return out, CostReport(
+        cost_source=cost_source,
         n_observations=len(out),
         warnings=warnings,
         errors=errors,
