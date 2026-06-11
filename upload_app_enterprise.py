@@ -8,6 +8,7 @@ from hcrl_onet_mapper import map_to_onet
 from hcrl_task_intelligence_engine import attach_task_intelligence
 from hcrl_risk_engine import estimate_attrition_risk
 from hcrl_cost_engine import estimate_expected_attrition_cost
+from hcrl_ai_readiness_engine import attach_ai_readiness
 from hcrl_decision_engine import build_segment_decision_table
 
 
@@ -215,8 +216,78 @@ if "expected_attrition_cost" in df.columns:
     else:
         st.info("Expected attrition cost is unavailable until risk and replacement-cost inputs exist.")
 
+# =====================================================
+# 7. AI READINESS ENGINE
+# =====================================================
 
-st.header("7. Decision Intelligence")
+st.header("7. AI Readiness Engine")
+
+df, ai_report = attach_ai_readiness(
+    df,
+    "onet_occupation_feature_table.csv"
+)
+
+if ai_report.errors:
+    st.error("AI readiness errors:")
+    for error in ai_report.errors:
+        st.write(error)
+
+a1, a2, a3 = st.columns(3)
+
+with a1:
+    st.metric(
+        "Matched Workforce Rows",
+        ai_report.matched_rows
+    )
+
+with a2:
+    st.metric(
+        "Unmatched Workforce Rows",
+        ai_report.unmatched_rows
+    )
+
+with a3:
+    st.metric(
+        "AI Dimensions",
+        len(ai_report.dimension_columns_used)
+    )
+
+if ai_report.warnings:
+    st.warning("AI readiness warnings:")
+    for warning in ai_report.warnings:
+        st.write(f"- {warning}")
+
+available_cols = [
+    col
+    for col in [
+        "ai_digital_work_percentile",
+        "ai_analytical_cognitive_work_percentile",
+        "ai_human_interaction_work_percentile",
+        "ai_physical_manual_work_percentile",
+        "ai_augmentation_readiness_index",
+    ]
+    if col in df.columns
+]
+
+if available_cols:
+    st.subheader("AI Readiness Preview")
+
+    preview_cols = []
+
+    if "job_title" in df.columns:
+        preview_cols.append("job_title")
+
+    if "matched_onet_title" in df.columns:
+        preview_cols.append("matched_onet_title")
+
+    preview_cols += available_cols
+
+    st.dataframe(
+        df[preview_cols].head(50),
+        use_container_width=True
+    )
+    
+st.header("8. Decision Intelligence")
 
 segment_options = [
     col for col in [
