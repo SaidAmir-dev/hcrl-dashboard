@@ -264,7 +264,6 @@ available_cols = [
         "ai_analytical_cognitive_work_percentile",
         "ai_human_interaction_work_percentile",
         "ai_physical_manual_work_percentile",
-        "ai_augmentation_readiness_index",
     ]
     if col in df.columns
 ]
