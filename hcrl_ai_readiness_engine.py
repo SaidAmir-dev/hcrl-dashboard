@@ -1,18 +1,16 @@
-"""HCRL AI readiness engine.
+"""HCRL AI readiness evidence engine.
 
-This module attaches O*NET-based AI readiness dimensions to workforce rows.
+No arbitrary thresholds.
+No fake AI score.
+No automated employment decisions.
 
-No fake thresholds.
-No fake confidence scores.
-No firing recommendations.
-
-It creates transparent relative indices from observed O*NET variables:
+This module attaches observable O*NET evidence dimensions:
 - digital work
 - analytical/cognitive work
-- human-interaction work
+- human interaction work
 - physical/manual work
 
-The output is decision-support evidence, not a final automated decision.
+Percentiles are shown only as within-dataset rankings, not probabilities.
 """
 
 from __future__ import annotations
@@ -36,7 +34,6 @@ class AIReadinessReport:
 AI_DIMENSION_COLUMNS = {
     "digital_work": [
         "Working with Computers",
-        "Computers and Electronics",
         "Processing Information",
         "Documenting/Recording Information",
     ],
@@ -48,6 +45,8 @@ AI_DIMENSION_COLUMNS = {
         "Information Ordering",
         "Mathematical Reasoning",
         "Problem Sensitivity",
+        "Making Decisions and Solving Problems",
+        "Thinking Creatively",
     ],
     "human_interaction_work": [
         "Assisting and Caring for Others",
@@ -59,7 +58,6 @@ AI_DIMENSION_COLUMNS = {
         "Active Listening",
         "Oral Comprehension",
         "Oral Expression",
-        "Customer and Personal Service",
     ],
     "physical_manual_work": [
         "Handling and Moving Objects",
@@ -112,55 +110,40 @@ def attach_ai_readiness(
 
     if code_col is None:
         errors.append("No O*NET code column found. AI readiness cannot be attached.")
-        return out, AIReadinessReport(
-            ai_reference_available=False,
-            matched_rows=0,
-            unmatched_rows=len(out),
-            dimension_columns_used={},
-            warnings=warnings,
-            errors=errors,
-        )
+        return out, AIReadinessReport(False, 0, len(out), {}, warnings, errors)
 
     try:
         onet = pd.read_csv(onet_feature_path)
     except Exception as e:
         errors.append(f"Could not load O*NET feature table: {e}")
-        return out, AIReadinessReport(
-            ai_reference_available=False,
-            matched_rows=0,
-            unmatched_rows=len(out),
-            dimension_columns_used={},
-            warnings=warnings,
-            errors=errors,
-        )
+        return out, AIReadinessReport(False, 0, len(out), {}, warnings, errors)
 
     if "O*NET-SOC Code" not in onet.columns:
         errors.append("O*NET feature table must contain 'O*NET-SOC Code'.")
-        return out, AIReadinessReport(
-            ai_reference_available=True,
-            matched_rows=0,
-            unmatched_rows=len(out),
-            dimension_columns_used={},
-            warnings=warnings,
-            errors=errors,
-        )
+        return out, AIReadinessReport(True, 0, len(out), {}, warnings, errors)
 
     out[code_col] = _standardize_code(out[code_col])
     onet["O*NET-SOC Code"] = _standardize_code(onet["O*NET-SOC Code"])
 
-    dimension_columns_used: Dict[str, List[str]] = {}
-
     feature_df = onet[["O*NET-SOC Code", "Title"]].copy()
+    dimension_columns_used: Dict[str, List[str]] = {}
 
     for dimension, candidate_cols in AI_DIMENSION_COLUMNS.items():
         cols = _available_columns(onet, candidate_cols)
         dimension_columns_used[dimension] = cols
 
+        raw_col = f"ai_{dimension}_evidence"
+        pct_col = f"ai_{dimension}_percentile"
+
         if not cols:
-            warnings.append(f"No usable O*NET columns found for dimension: {dimension}")
-            feature_df[f"ai_{dimension}_raw"] = pd.NA
-        else:
-            feature_df[f"ai_{dimension}_raw"] = _row_mean_numeric(onet, cols)
+            feature_df[raw_col] = pd.NA
+            warnings.append(f"No usable O*NET columns found for {dimension}.")
+            continue
+
+        feature_df[raw_col] = _row_mean_numeric(onet, cols)
+        feature_df[pct_col] = pd.to_numeric(
+            feature_df[raw_col], errors="coerce"
+        ).rank(pct=True)
 
     merged = out.merge(
         feature_df,
@@ -173,45 +156,23 @@ def attach_ai_readiness(
     matched = int(merged["O*NET-SOC Code"].notna().sum())
     unmatched = int(merged["O*NET-SOC Code"].isna().sum())
 
-    for dimension in AI_DIMENSION_COLUMNS:
-        raw_col = f"ai_{dimension}_raw"
-        rank_col = f"ai_{dimension}_percentile"
+    missing_evidence_rows = int(
+        merged[
+            [
+                c for c in merged.columns
+                if c.endswith("_evidence")
+            ]
+        ].isna().all(axis=1).sum()
+    )
 
-        if raw_col in merged.columns:
-            merged[rank_col] = pd.to_numeric(
-                merged[raw_col],
-                errors="coerce",
-            ).rank(pct=True)
-
-    # This is not a probability and not a decision threshold.
-    # It is a relative index based on workforce percentile ranks.
-    positive_cols = [
-        "ai_digital_work_percentile",
-        "ai_analytical_cognitive_work_percentile",
-    ]
-
-    constraint_cols = [
-        "ai_human_interaction_work_percentile",
-        "ai_physical_manual_work_percentile",
-    ]
-
-    available_positive = [c for c in positive_cols if c in merged.columns]
-    available_constraint = [c for c in constraint_cols if c in merged.columns]
-
-    if available_positive and available_constraint:
-        merged["ai_augmentation_readiness_index"] = (
-            merged[available_positive].mean(axis=1)
-            - merged[available_constraint].mean(axis=1)
-        )
-    else:
-        merged["ai_augmentation_readiness_index"] = pd.NA
+    if missing_evidence_rows:
         warnings.append(
-            "AI augmentation readiness index could not be computed because one or more dimension groups are missing."
+            f"{missing_evidence_rows} matched rows have no usable AI evidence values in the O*NET feature table."
         )
 
     warnings.append(
-        "AI readiness dimensions are relative O*NET-based evidence indicators. "
-        "They are not calibrated probabilities and should not be used as automated employment decisions."
+        "AI readiness fields are O*NET evidence indicators and workforce-relative percentiles. "
+        "They are not probabilities, thresholds, or automated recommendations."
     )
 
     return merged, AIReadinessReport(
