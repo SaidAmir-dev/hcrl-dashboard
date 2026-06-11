@@ -141,10 +141,22 @@ dimension_labels = {
     "avg_physical_work": "Physical / Manual",
 }
 
+def get_primary_dimension(row):
+
+    values = row[dimension_cols].dropna()
+
+    if len(values) == 0:
+        return None
+
+    return dimension_labels[
+        values.idxmax()
+    ]
+
 summary["primary_work_type"] = (
-    summary[dimension_cols]
-    .idxmax(axis=1)
-    .map(dimension_labels)
+    summary.apply(
+        get_primary_dimension,
+        axis=1,
+    )
 )
 
 # --------------------------------------------
