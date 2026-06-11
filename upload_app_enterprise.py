@@ -9,6 +9,7 @@ from hcrl_task_intelligence_engine import attach_task_intelligence
 from hcrl_risk_engine import estimate_attrition_risk
 from hcrl_cost_engine import estimate_expected_attrition_cost
 from hcrl_ai_readiness_engine import attach_ai_readiness
+from hcrl_prioritization_engine import build_prioritization_table
 from hcrl_decision_engine import build_segment_decision_table
 
 
@@ -285,8 +286,42 @@ if available_cols:
         df[preview_cols].head(50),
         use_container_width=True
     )
+
+# =====================================================
+# 8. WORKFORCE PRIORITIZATION
+# =====================================================
+
+st.header("8. Workforce Prioritization")
+
+priority_table, priority_report = (
+    build_prioritization_table(df)
+)
+
+if priority_report.errors:
+    st.error("Prioritization errors:")
+    for error in priority_report.errors:
+        st.write(error)
+
+else:
+
+    st.metric(
+        "Occupations Ranked",
+        priority_report.occupations_analyzed
+    )
+
+    st.dataframe(
+        priority_table,
+        use_container_width=True
+    )
+
+    st.download_button(
+        label="Download Workforce Prioritization Table",
+        data=priority_table.to_csv(index=False).encode("utf-8"),
+        file_name="hcrl_workforce_prioritization.csv",
+        mime="text/csv",
+    )
     
-st.header("8. Decision Intelligence")
+st.header("9. Decision Intelligence")
 
 segment_options = [
     col for col in [
@@ -328,7 +363,7 @@ else:
         )
 
 
-st.header("9. Download Full HCRL Output")
+st.header("10. Download Full HCRL Output")
 
 st.download_button(
     label="Download Full HCRL Analyzed Dataset",
