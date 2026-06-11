@@ -22,6 +22,7 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
+from hcrl_occupation_aliases import OCCUPATION_ALIASES
 from hcrl_title_normalizer import normalize_title
 from hcrl_occupation_candidate_engine import (
     generate_candidate_titles,
