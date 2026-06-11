@@ -10,12 +10,6 @@ from hcrl_risk_engine import estimate_attrition_risk
 from hcrl_cost_engine import estimate_expected_attrition_cost
 from hcrl_decision_engine import build_segment_decision_table
 
-try:
-    from hcrl_intervention_engine import evaluate_interventions
-    HAS_INTERVENTION_ENGINE = True
-except ImportError:
-    HAS_INTERVENTION_ENGINE = False
-
 
 st.set_page_config(
     page_title="HCRL Enterprise Workforce Intelligence",
@@ -33,13 +27,9 @@ st.write(
 
 st.divider()
 
-
 st.header("1. Upload Workforce Data")
 
-workforce_file = st.file_uploader(
-    "Upload company workforce CSV",
-    type=["csv"],
-)
+workforce_file = st.file_uploader("Upload company workforce CSV", type=["csv"])
 
 if workforce_file is None:
     st.info("Upload a company workforce file to begin.")
@@ -60,7 +50,6 @@ st.header("2. HCRL Schema Validation")
 df, schema_report = standardize_workforce_data(raw_df)
 
 c1, c2, c3, c4 = st.columns(4)
-
 c1.metric("Source Type", schema_report.source_type)
 c2.metric("Mapped Fields", len(schema_report.mapped_columns))
 c3.metric("Model Features", len(schema_report.model_feature_columns))
@@ -69,10 +58,7 @@ c4.metric("Unmapped Columns", len(schema_report.unmapped_columns))
 st.subheader("Mapped Columns")
 
 mapped_columns_df = pd.DataFrame(
-    [
-        {"HCRL Field": k, "Source Column": v}
-        for k, v in schema_report.mapped_columns.items()
-    ]
+    [{"HCRL Field": k, "Source Column": v} for k, v in schema_report.mapped_columns.items()]
 )
 
 if mapped_columns_df.empty:
@@ -98,31 +84,20 @@ try:
     onet_reference = pd.read_csv("onet_occupation_feature_table.csv")
     df, onet_report = map_to_onet(df, onet_reference)
 
+    total_rows = len(df)
+    accepted_coverage = onet_report.accepted_matches / total_rows if total_rows > 0 else 0
+    review_share = onet_report.review_required_matches / total_rows if total_rows > 0 else 0
+
     o1, o2, o3, o4 = st.columns(4)
+    o1.metric("Role Column", str(onet_report.role_column))
+    o2.metric("Accepted Coverage", f"{accepted_coverage:.1%}")
+    o3.metric("Accepted Matches", f"{onet_report.accepted_matches:,}")
+    o4.metric("Review Queue", f"{onet_report.review_required_matches:,} ({review_share:.1%})")
 
-total_rows = len(df)
-
-accepted_coverage = (
-    onet_report.accepted_matches / total_rows
-    if total_rows > 0
-    else 0
-)
-
-review_share = (
-    onet_report.review_required_matches / total_rows
-    if total_rows > 0
-    else 0
-)
-
-o1.metric("Role Column", str(onet_report.role_column))
-o2.metric("Accepted Coverage", f"{accepted_coverage:.1%}")
-o3.metric("Accepted Matches", f"{onet_report.accepted_matches:,}")
-o4.metric("Review Queue", f"{onet_report.review_required_matches:,} ({review_share:.1%})")
-
-st.write(
-    "Accepted coverage includes only deterministic matches. "
-    "Review queue contains candidate mappings that require human validation before enterprise reporting."
-)
+    st.write(
+        "Accepted coverage includes only deterministic matches. "
+        "Review queue contains candidate mappings that require human validation before enterprise reporting."
+    )
 
     debug_cols = [
         "employee_id",
@@ -143,10 +118,7 @@ st.write(
     available_debug_cols = [c for c in debug_cols if c in df.columns]
 
     st.subheader("O*NET Mapping Debug Table")
-    st.dataframe(
-        df[available_debug_cols].head(150),
-        use_container_width=True,
-    )
+    st.dataframe(df[available_debug_cols].head(150), use_container_width=True)
 
 except Exception as e:
     st.error(f"O*NET mapping failed: {e}")
@@ -158,17 +130,8 @@ try:
     df, role_task_table, task_report = attach_task_intelligence(df)
 
     t1, t2, t3, t4 = st.columns(4)
-
-    t1.metric(
-        "Task Summary Available",
-        "Yes" if task_report.task_summary_available else "No",
-    )
-
-    t2.metric(
-        "Task Portfolio Available",
-        "Yes" if task_report.task_portfolio_available else "No",
-    )
-
+    t1.metric("Task Summary Available", "Yes" if task_report.task_summary_available else "No")
+    t2.metric("Task Portfolio Available", "Yes" if task_report.task_portfolio_available else "No")
     t3.metric("Matched Occupations", f"{task_report.matched_occupations:,}")
     t4.metric("Unmatched Occupations", f"{task_report.unmatched_occupations:,}")
 
@@ -193,10 +156,7 @@ try:
             mime="text/csv",
         )
     else:
-        st.info(
-            "Task table unavailable. This usually means O*NET mapping failed or "
-            "task portfolio files are missing."
-        )
+        st.info("Task table unavailable. This usually means O*NET mapping failed or task portfolio files are missing.")
 
 except Exception as e:
     st.error(f"Task Intelligence Engine failed: {e}")
@@ -204,13 +164,9 @@ except Exception as e:
 
 st.header("5. Attrition Risk Engine")
 
-df, risk_report = estimate_attrition_risk(
-    df,
-    schema_report.model_feature_columns,
-)
+df, risk_report = estimate_attrition_risk(df, schema_report.model_feature_columns)
 
 r1, r2, r3, r4 = st.columns(4)
-
 r1.metric("Risk Source", risk_report.risk_source)
 r2.metric("Model Used", str(risk_report.model_used))
 r3.metric("Observations", f"{risk_report.n_observations:,}")
@@ -227,16 +183,9 @@ if risk_report.errors:
         st.write(f"- {error}")
 
 if "predicted_attrition_probability" in df.columns:
-    valid_risk = pd.to_numeric(
-        df["predicted_attrition_probability"],
-        errors="coerce",
-    ).dropna()
-
+    valid_risk = pd.to_numeric(df["predicted_attrition_probability"], errors="coerce").dropna()
     if not valid_risk.empty:
-        st.metric(
-            "Average Predicted Attrition Probability",
-            f"{valid_risk.mean():.1%}",
-        )
+        st.metric("Average Predicted Attrition Probability", f"{valid_risk.mean():.1%}")
     else:
         st.info("Attrition probabilities are unavailable for this dataset.")
 
@@ -246,7 +195,6 @@ st.header("6. Economic Exposure Engine")
 df, cost_report = estimate_expected_attrition_cost(df)
 
 e1, e2 = st.columns(2)
-
 e1.metric("Cost Source", cost_report.cost_source)
 e2.metric("Rows Analyzed", f"{cost_report.n_observations:,}")
 
@@ -261,18 +209,11 @@ if cost_report.errors:
         st.write(f"- {error}")
 
 if "expected_attrition_cost" in df.columns:
-    valid_cost = pd.to_numeric(
-        df["expected_attrition_cost"],
-        errors="coerce",
-    ).dropna()
-
+    valid_cost = pd.to_numeric(df["expected_attrition_cost"], errors="coerce").dropna()
     if not valid_cost.empty:
         st.metric("Total Expected Attrition Cost", f"${valid_cost.sum():,.0f}")
     else:
-        st.info(
-            "Expected attrition cost is unavailable until risk and replacement-cost "
-            "inputs exist."
-        )
+        st.info("Expected attrition cost is unavailable until risk and replacement-cost inputs exist.")
 
 
 st.header("7. Decision Intelligence")
@@ -292,15 +233,9 @@ segment_options = [
 if not segment_options:
     st.warning("No usable segment column found.")
 else:
-    segment_col = st.selectbox(
-        "Choose workforce segmentation variable",
-        segment_options,
-    )
+    segment_col = st.selectbox("Choose workforce segmentation variable", segment_options)
 
-    decision_table, decision_report = build_segment_decision_table(
-        df,
-        segment_col=segment_col,
-    )
+    decision_table, decision_report = build_segment_decision_table(df, segment_col=segment_col)
 
     if decision_report.warnings:
         st.warning("Decision engine warnings:")
