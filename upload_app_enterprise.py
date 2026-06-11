@@ -11,7 +11,9 @@ from hcrl_cost_engine import estimate_expected_attrition_cost
 from hcrl_ai_readiness_engine import attach_ai_readiness
 from hcrl_prioritization_engine import build_prioritization_table
 from hcrl_decision_engine import build_segment_decision_table
-
+from hcrl_action_intelligence_engine import (
+    build_action_intelligence_table
+)
 
 st.set_page_config(
     page_title="HCRL Enterprise Workforce Intelligence",
@@ -320,8 +322,48 @@ else:
         file_name="hcrl_workforce_prioritization.csv",
         mime="text/csv",
     )
+
+# =====================================================
+# 9. ACTION INTELLIGENCE
+# =====================================================
+
+st.header("9. Workforce Action Intelligence")
+
+action_table, action_report = (
+    build_action_intelligence_table(
+        priority_table
+    )
+)
+
+if action_report.errors:
+
+    st.error(
+        "Action intelligence errors:"
+    )
+
+    for error in action_report.errors:
+        st.write(error)
+
+else:
+
+    st.metric(
+        "Occupations Evaluated",
+        action_report.occupations_analyzed
+    )
+
+    st.dataframe(
+        action_table,
+        use_container_width=True,
+    )
+
+    st.download_button(
+        label="Download Action Intelligence Table",
+        data=action_table.to_csv(index=False).encode("utf-8"),
+        file_name="hcrl_action_intelligence.csv",
+        mime="text/csv",
+    )
     
-st.header("9. Decision Intelligence")
+st.header("10. Decision Intelligence")
 
 segment_options = [
     col for col in [
@@ -363,7 +405,7 @@ else:
         )
 
 
-st.header("10. Download Full HCRL Output")
+st.header("11. Download Full HCRL Output")
 
 st.download_button(
     label="Download Full HCRL Analyzed Dataset",
