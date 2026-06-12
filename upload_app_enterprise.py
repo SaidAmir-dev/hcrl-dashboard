@@ -11,6 +11,9 @@ from hcrl_cost_engine import estimate_expected_attrition_cost
 from hcrl_ai_readiness_engine import attach_ai_readiness
 from hcrl_prioritization_engine import build_prioritization_table
 from hcrl_scenario_engine import build_scenario_table
+from hcrl_executive_report_engine import (
+    build_executive_focus_table
+)
 from hcrl_decision_engine import build_segment_decision_table
 from hcrl_action_intelligence_engine import (
     build_action_intelligence_table
@@ -413,7 +416,68 @@ else:
         file_name="hcrl_workforce_scenarios.csv",
         mime="text/csv",
     )
-st.header("11. Decision Intelligence")
+
+# =====================================================
+# 11. EXECUTIVE REPORT
+# =====================================================
+
+st.header("11. Executive Management Report")
+
+executive_table, executive_report = (
+    build_executive_focus_table(
+        priority_table
+    )
+)
+
+if executive_report.errors:
+
+    st.error(
+        "Executive report errors:"
+    )
+
+    for error in executive_report.errors:
+        st.write(error)
+
+else:
+
+    e1, e2, e3, e4 = st.columns(4)
+
+    e1.metric(
+        "Expected Attrition Cost",
+        f"${executive_report.total_expected_attrition_cost:,.0f}"
+    )
+
+    e2.metric(
+        "Top Cost Driver",
+        executive_report.top_cost_driver
+    )
+
+    e3.metric(
+        "Top Cost Share",
+        f"{executive_report.top_cost_share:.1f}%"
+    )
+
+    e4.metric(
+        "Focus Areas",
+        executive_report.focus_areas_identified
+    )
+
+    st.subheader(
+        "Management Focus Areas"
+    )
+
+    st.dataframe(
+        executive_table,
+        use_container_width=True,
+    )
+
+    st.download_button(
+        label="Download Executive Report Table",
+        data=executive_table.to_csv(index=False).encode("utf-8"),
+        file_name="hcrl_executive_report.csv",
+        mime="text/csv",
+    )
+st.header("12. Decision Intelligence")
 
 segment_options = [
     col for col in [
@@ -455,7 +519,7 @@ else:
         )
 
 
-st.header("12. Download Full HCRL Output")
+st.header("13. Download Full HCRL Output")
 
 st.download_button(
     label="Download Full HCRL Analyzed Dataset",
