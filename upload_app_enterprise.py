@@ -10,6 +10,7 @@ from hcrl_risk_engine import estimate_attrition_risk
 from hcrl_cost_engine import estimate_expected_attrition_cost
 from hcrl_ai_readiness_engine import attach_ai_readiness
 from hcrl_prioritization_engine import build_prioritization_table
+from hcrl_scenario_engine import build_scenario_table
 from hcrl_decision_engine import build_segment_decision_table
 from hcrl_action_intelligence_engine import (
     build_action_intelligence_table
@@ -362,8 +363,57 @@ else:
         file_name="hcrl_action_intelligence.csv",
         mime="text/csv",
     )
-    
-st.header("10. Decision Intelligence")
+
+# =====================================================
+# 10. WORKFORCE SCENARIO ENGINE
+# =====================================================
+
+st.header("10. Workforce Scenario Engine")
+
+scenario_table, scenario_report = build_scenario_table(
+    priority_table
+)
+
+if scenario_report.errors:
+    st.error("Scenario engine errors:")
+    for error in scenario_report.errors:
+        st.write(error)
+
+else:
+    s1, s2, s3, s4 = st.columns(4)
+
+    s1.metric(
+        "Current Expected Attrition Cost",
+        f"${scenario_report.portfolio_current_cost:,.0f}",
+    )
+
+    s2.metric(
+        "10% Reduction Scenario",
+        f"${scenario_report.portfolio_current_cost * 0.10:,.0f}",
+    )
+
+    s3.metric(
+        "20% Reduction Scenario",
+        f"${scenario_report.portfolio_current_cost * 0.20:,.0f}",
+    )
+
+    s4.metric(
+        "30% Reduction Scenario",
+        f"${scenario_report.portfolio_current_cost * 0.30:,.0f}",
+    )
+
+    st.dataframe(
+        scenario_table,
+        use_container_width=True,
+    )
+
+    st.download_button(
+        label="Download Workforce Scenario Table",
+        data=scenario_table.to_csv(index=False).encode("utf-8"),
+        file_name="hcrl_workforce_scenarios.csv",
+        mime="text/csv",
+    )
+st.header("11. Decision Intelligence")
 
 segment_options = [
     col for col in [
@@ -405,7 +455,7 @@ else:
         )
 
 
-st.header("11. Download Full HCRL Output")
+st.header("12. Download Full HCRL Output")
 
 st.download_button(
     label="Download Full HCRL Analyzed Dataset",
