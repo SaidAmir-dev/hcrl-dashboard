@@ -6,6 +6,7 @@ import pandas as pd
 from hcrl_schema import standardize_workforce_data
 from hcrl_onet_mapper import map_to_onet
 from hcrl_task_intelligence_engine import attach_task_intelligence
+from hcrl_narrative_engine import build_workforce_narratives
 from hcrl_risk_engine import estimate_attrition_risk
 from hcrl_cost_engine import estimate_expected_attrition_cost
 from hcrl_ai_readiness_engine import attach_ai_readiness
@@ -477,7 +478,40 @@ else:
         file_name="hcrl_executive_report.csv",
         mime="text/csv",
     )
-st.header("12. Decision Intelligence")
+
+# =====================================================
+# 12. WORKFORCE RISK NARRATIVES
+# =====================================================
+
+st.header("12. Workforce Risk Narratives")
+
+narrative_table, narrative_report = build_workforce_narratives(
+    executive_table
+)
+
+if narrative_report.errors:
+    st.error("Narrative engine errors:")
+    for error in narrative_report.errors:
+        st.write(error)
+
+else:
+    st.metric(
+        "Narratives Generated",
+        narrative_report.narratives_generated
+    )
+
+    st.dataframe(
+        narrative_table,
+        use_container_width=True,
+    )
+
+    st.download_button(
+        label="Download Workforce Narrative Report",
+        data=narrative_table.to_csv(index=False).encode("utf-8"),
+        file_name="hcrl_workforce_narratives.csv",
+        mime="text/csv",
+    )
+st.header("13. Decision Intelligence")
 
 segment_options = [
     col for col in [
@@ -519,7 +553,7 @@ else:
         )
 
 
-st.header("13. Download Full HCRL Output")
+st.header("14. Download Full HCRL Output")
 
 st.download_button(
     label="Download Full HCRL Analyzed Dataset",
