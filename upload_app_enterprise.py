@@ -674,12 +674,12 @@ if not segmentation_table.empty:
         "This segmentation view helps identify where workforce risk is concentrated "
         "inside the organization, beyond occupation-level analysis."
     )
-        st.download_button(
-            label="Download Workforce Segmentation Table",
-            data=segmentation_table.to_csv(index=False).encode("utf-8"),
-            file_name=f"hcrl_segmentation_by_{selected_segment}.csv",
-            mime="text/csv",
-        )
+    st.download_button(
+        label="Download Workforce Segmentation Table",
+        data=segmentation_table.to_csv(index=False).encode("utf-8"),
+        file_name=f"hcrl_segmentation_by_{selected_segment}.csv",
+        mime="text/csv",
+    )
 with st.expander("Methodology and Limitations"):
     st.write(
         """
