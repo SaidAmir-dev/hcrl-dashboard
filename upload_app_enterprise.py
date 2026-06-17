@@ -796,16 +796,16 @@ else:
         for warning in recommendation_report.warnings:
             st.write(f"- {warning}")
 
-display_cols = [
-    "hypothesis_rank",
-    "driver_group",
-    "supporting_variable",
-    "association_value",
-    "actionability",
-    "review_area",
-    "observed_pattern",
-    "management_hypothesis",
-]
+    display_cols = [
+        "hypothesis_rank",
+        "driver_group",
+        "supporting_variable",
+        "association_value",
+        "actionability",
+        "review_area",
+        "observed_pattern",
+        "management_hypothesis",
+    ]
     st.dataframe(
         recommendation_table[display_cols].head(25),
         use_container_width=True,
