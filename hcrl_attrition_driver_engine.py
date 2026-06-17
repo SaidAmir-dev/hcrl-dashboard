@@ -2,7 +2,7 @@
 HCRL Attrition Driver Intelligence Engine
 
 Purpose:
-Identify original workforce variables statistically associated with
+Identify business-level workforce variables statistically associated with
 predicted attrition risk.
 
 No causal claims.
@@ -28,27 +28,20 @@ class AttritionDriverReport:
 
 EXCLUDED_COLUMNS = {
     "employee_id",
-
     "predicted_attrition_probability",
-
     "expected_attrition_cost",
     "expected_attrition_cost_low",
     "expected_attrition_cost_high",
-
     "replacement_cost",
     "replacement_cost_low",
     "replacement_cost_high",
-
     "replacement_cost_multiplier_base",
     "replacement_cost_multiplier_low",
     "replacement_cost_multiplier_high",
     "replacement_cost_tier",
-
     "annual_wage",
-
     "Attrition",
     "separation_outcome",
-
     "matched_onet_title",
     "matched_onet_code",
     "normalized_title",
@@ -56,14 +49,12 @@ EXCLUDED_COLUMNS = {
     "O*NET-SOC Code",
     "O*NET-SOC Code_ai_reference",
     "Title",
-
     "onet_match_score",
     "onet_match_method",
     "onet_match_status",
     "title_function",
     "title_level",
     "title_normalization_method",
-
     "primary_work_type",
     "secondary_work_type",
     "priority_rank",
@@ -72,30 +63,48 @@ EXCLUDED_COLUMNS = {
 }
 
 
-DUPLICATE_DRIVER_MAP = {
+NON_ACTIONABLE_DEMOGRAPHICS = {
+    "Age",
+    "age",
+    "Gender",
+    "gender",
+    "MaritalStatus",
+    "marital_status",
+}
+
+
+DRIVER_GROUPS = {
     "MonthlyIncome": "Compensation",
     "monthly_income": "Compensation",
-
-    "YearsAtCompany": "Tenure",
-    "tenure_years": "Tenure",
-    "TotalWorkingYears": "Tenure",
+    "PercentSalaryHike": "Compensation Growth",
 
     "JobLevel": "Career Progression",
-    "YearsInCurrentRole": "Career Progression",
     "YearsSinceLastPromotion": "Career Progression",
 
     "YearsWithCurrManager": "Manager Stability",
 
-    "StockOptionLevel": "Long-Term Incentives",
-
-    "WorkLifeBalance": "Work-Life Balance",
     "OverTime": "Workload",
-    "BusinessTravel": "Travel Burden",
 
     "EnvironmentSatisfaction": "Work Environment",
     "JobSatisfaction": "Job Satisfaction",
     "RelationshipSatisfaction": "Relationship Satisfaction",
-    "JobInvolvement": "Job Involvement",
+
+    "WorkLifeBalance": "Work-Life Balance",
+
+    "StockOptionLevel": "Long-Term Incentives",
+
+    "BusinessTravel": "Travel Burden",
+    "DistanceFromHome": "Commute Burden",
+
+    "TrainingTimesLastYear": "Training",
+
+    "YearsAtCompany": "Employee Tenure",
+    "tenure_years": "Employee Tenure",
+
+    "TotalWorkingYears": "Employee Experience",
+    "YearsInCurrentRole": "Role Stability",
+
+    "JobInvolvement": "Job Engagement",
 
     "Department": "Department",
     "department": "Department",
@@ -103,8 +112,32 @@ DUPLICATE_DRIVER_MAP = {
     "JobRole": "Occupation",
     "job_title": "Occupation",
 
-    "Age": "Age",
-    "age": "Age",
+    "NumCompaniesWorked": "Career Mobility",
+    "Education": "Education",
+    "EducationField": "Education Field",
+    "PerformanceRating": "Performance",
+}
+
+
+ACTIONABLE_GROUPS = {
+    "Compensation",
+    "Compensation Growth",
+    "Career Progression",
+    "Manager Stability",
+    "Workload",
+    "Training",
+    "Work Environment",
+    "Job Satisfaction",
+    "Relationship Satisfaction",
+    "Work-Life Balance",
+    "Long-Term Incentives",
+    "Travel Burden",
+    "Commute Burden",
+    "Role Stability",
+    "Job Engagement",
+    "Department",
+    "Career Mobility",
+    "Performance",
 }
 
 
@@ -135,12 +168,12 @@ def build_attrition_driver_table(
         return pd.DataFrame(), AttritionDriverReport(0, warnings, errors)
 
     global_risk = df[target_col].mean()
-
     rows = []
 
     candidate_cols = [
         col for col in df.columns
         if col not in EXCLUDED_COLUMNS
+        and col not in NON_ACTIONABLE_DEMOGRAPHICS
         and not col.startswith("ai_")
         and not col.startswith("task_")
         and not col.startswith("matched_")
@@ -149,12 +182,10 @@ def build_attrition_driver_table(
     ]
 
     for col in candidate_cols:
-
         series = df[col]
         numeric_series = pd.to_numeric(series, errors="coerce")
 
         if numeric_series.notna().mean() >= 0.8:
-
             temp = pd.DataFrame(
                 {
                     "x": numeric_series,
@@ -176,7 +207,7 @@ def build_attrition_driver_table(
             rows.append(
                 {
                     "driver_variable": col,
-                    "driver_group": DUPLICATE_DRIVER_MAP.get(col, col),
+                    "driver_group": DRIVER_GROUPS.get(col, col),
                     "driver_type": "numeric",
                     "association_metric": "spearman_correlation_with_predicted_attrition_probability",
                     "association_value": association,
@@ -193,7 +224,6 @@ def build_attrition_driver_table(
             )
 
         else:
-
             temp = pd.DataFrame(
                 {
                     "category": series.astype(str),
@@ -234,7 +264,7 @@ def build_attrition_driver_table(
             rows.append(
                 {
                     "driver_variable": col,
-                    "driver_group": DUPLICATE_DRIVER_MAP.get(col, col),
+                    "driver_group": DRIVER_GROUPS.get(col, col),
                     "driver_type": "categorical",
                     "association_metric": "largest_category_difference_from_company_average",
                     "association_value": association,
@@ -271,8 +301,18 @@ def build_attrition_driver_table(
             subset=["driver_group"],
             keep="first",
         )
-        .drop(columns=["absolute_association_value"])
         .reset_index(drop=True)
+    )
+
+    driver_table["actionability"] = (
+        driver_table["driver_group"]
+        .isin(ACTIONABLE_GROUPS)
+        .map(
+            {
+                True: "Actionable",
+                False: "Descriptive",
+            }
+        )
     )
 
     driver_table["driver_rank"] = range(
@@ -283,12 +323,13 @@ def build_attrition_driver_table(
     driver_table = driver_table[
         [
             "driver_rank",
-            "driver_variable",
             "driver_group",
+            "driver_variable",
             "driver_type",
             "association_metric",
             "association_value",
             "direction",
+            "actionability",
             "evidence_summary",
         ]
     ]
