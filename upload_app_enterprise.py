@@ -5,6 +5,7 @@ import pandas as pd
 
 from hcrl_schema import standardize_workforce_data
 from hcrl_onet_mapper import map_to_onet
+from hcrl_attrition_driver_engine import build_attrition_driver_table
 from hcrl_task_intelligence_engine import attach_task_intelligence
 from hcrl_narrative_engine import build_workforce_narratives
 from hcrl_risk_engine import estimate_attrition_risk
@@ -674,6 +675,44 @@ else:
             file_name=f"hcrl_segmentation_by_{selected_segment}.csv",
             mime="text/csv",
         )
+
+# =====================================================
+# 16. ATTRITION DRIVER INTELLIGENCE
+# =====================================================
+
+st.header("16. Attrition Driver Intelligence")
+
+driver_table, driver_report = build_attrition_driver_table(df)
+
+if driver_report.errors:
+    st.error("Attrition driver errors:")
+    for error in driver_report.errors:
+        st.write(error)
+
+else:
+    st.metric(
+        "Drivers Analyzed",
+        f"{driver_report.drivers_analyzed:,}",
+    )
+
+    if driver_report.warnings:
+        st.warning("Driver analysis warnings:")
+        for warning in driver_report.warnings:
+            st.write(f"- {warning}")
+
+    st.dataframe(
+        driver_table.head(25),
+        use_container_width=True,
+    )
+
+    st.download_button(
+        label="Download Attrition Driver Table",
+        data=driver_table.to_csv(index=False).encode("utf-8"),
+        file_name="hcrl_attrition_driver_intelligence.csv",
+        mime="text/csv",
+    )
+
+
 with st.expander("Methodology and Limitations"):
     st.write(
         """
