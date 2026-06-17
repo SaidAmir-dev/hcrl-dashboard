@@ -8,6 +8,7 @@ from hcrl_onet_mapper import map_to_onet
 from hcrl_task_intelligence_engine import attach_task_intelligence
 from hcrl_narrative_engine import build_workforce_narratives
 from hcrl_risk_engine import estimate_attrition_risk
+from hcrl_segmentation_engine import build_segmentation_table
 from hcrl_cost_engine import estimate_expected_attrition_cost
 from hcrl_ai_readiness_engine import attach_ai_readiness
 from hcrl_prioritization_engine import build_prioritization_table
@@ -562,7 +563,87 @@ st.download_button(
     mime="text/csv",
 )
 
+# =====================================================
+# 15. WORKFORCE SEGMENTATION INTELLIGENCE
+# =====================================================
 
+st.header("15. Workforce Segmentation Intelligence")
+
+segmentation_options = [
+    col for col in [
+        "department",
+        "location",
+        "job_title",
+        "matched_onet_title",
+        "matched_onet_code",
+        "occupation_code",
+        "business_unit",
+        "country",
+        "manager",
+        "manager_id",
+        "salary_band",
+    ]
+    if col in df.columns
+]
+
+if not segmentation_options:
+    st.warning("No usable segmentation columns found.")
+else:
+    selected_segment = st.selectbox(
+        "Choose organizational segment",
+        segmentation_options,
+        key="segmentation_intelligence_segment",
+    )
+
+    segmentation_table, segmentation_report = build_segmentation_table(
+        df,
+        selected_segment,
+    )
+
+    if segmentation_report.errors:
+        st.error("Segmentation errors:")
+        for error in segmentation_report.errors:
+            st.write(error)
+
+    else:
+        sg1, sg2, sg3, sg4 = st.columns(4)
+
+        sg1.metric(
+            "Segments Analyzed",
+            f"{segmentation_report.segments_analyzed:,}",
+        )
+
+        sg2.metric(
+            "Total Expected Cost",
+            f"${segmentation_report.total_expected_attrition_cost:,.0f}",
+        )
+
+        sg3.metric(
+            "Largest Cost Segment",
+            segmentation_report.largest_cost_segment,
+        )
+
+        sg4.metric(
+            "Highest Risk Segment",
+            segmentation_report.highest_risk_segment,
+        )
+
+        if segmentation_report.warnings:
+            st.warning("Segmentation warnings:")
+            for warning in segmentation_report.warnings:
+                st.write(f"- {warning}")
+
+        st.dataframe(
+            segmentation_table,
+            use_container_width=True,
+        )
+
+        st.download_button(
+            label="Download Workforce Segmentation Table",
+            data=segmentation_table.to_csv(index=False).encode("utf-8"),
+            file_name=f"hcrl_segmentation_by_{selected_segment}.csv",
+            mime="text/csv",
+        )
 with st.expander("Methodology and Limitations"):
     st.write(
         """
