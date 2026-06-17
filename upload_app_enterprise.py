@@ -5,6 +5,7 @@ import pandas as pd
 
 from hcrl_schema import standardize_workforce_data
 from hcrl_onet_mapper import map_to_onet
+from hcrl_driver_recommendation_engine import build_driver_recommendations
 from hcrl_attrition_driver_engine import build_attrition_driver_table
 from hcrl_task_intelligence_engine import attach_task_intelligence
 from hcrl_narrative_engine import build_workforce_narratives
@@ -784,7 +785,51 @@ else:
         mime="text/csv",
     )
 
+# =====================================================
+# 17. MANAGEMENT HYPOTHESIS ENGINE
+# =====================================================
 
+st.header("17. Management Hypothesis Engine")
+
+recommendation_table, recommendation_report = build_driver_recommendations(
+    driver_table
+)
+
+if recommendation_report.errors:
+    st.error("Management hypothesis errors:")
+    for error in recommendation_report.errors:
+        st.write(error)
+
+else:
+    st.metric(
+        "Hypotheses Generated",
+        f"{recommendation_report.recommendations_generated:,}",
+    )
+
+    if recommendation_report.warnings:
+        st.warning("Management hypothesis warnings:")
+        for warning in recommendation_report.warnings:
+            st.write(f"- {warning}")
+
+    display_cols = [
+        "driver_variable",
+        "association_value",
+        "direction",
+        "review_area",
+        "management_hypothesis",
+    ]
+
+    st.dataframe(
+        recommendation_table[display_cols].head(25),
+        use_container_width=True,
+    )
+
+    st.download_button(
+        label="Download Management Hypothesis Table",
+        data=recommendation_table.to_csv(index=False).encode("utf-8"),
+        file_name="hcrl_management_hypotheses.csv",
+        mime="text/csv",
+    )
 with st.expander("Methodology and Limitations"):
     st.write(
         """
