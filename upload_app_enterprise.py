@@ -638,6 +638,42 @@ else:
             use_container_width=True,
         )
 
+# -----------------------------------------------------
+# Segmentation Narrative
+# -----------------------------------------------------
+
+if not segmentation_table.empty:
+
+    top_cost_row = segmentation_table.sort_values(
+        "total_expected_attrition_cost",
+        ascending=False,
+    ).iloc[0]
+
+    top_risk_row = segmentation_table.sort_values(
+        "avg_attrition_probability",
+        ascending=False,
+    ).iloc[0]
+
+    st.subheader("Segmentation Interpretation")
+
+    st.write(
+        f"{top_cost_row['segment']} accounts for "
+        f"{top_cost_row['share_of_total_cost_pct']:.1f}% of total expected "
+        f"attrition cost, making it the largest economic exposure segment "
+        f"under the selected segmentation view."
+    )
+
+    st.write(
+        f"{top_risk_row['segment']} has the highest average predicted "
+        f"attrition probability at {top_risk_row['avg_attrition_probability']:.1%}. "
+        f"This does not imply an automated decision, but it indicates where "
+        f"management may want to investigate retention drivers first."
+    )
+
+    st.write(
+        "This segmentation view helps identify where workforce risk is concentrated "
+        "inside the organization, beyond occupation-level analysis."
+    )
         st.download_button(
             label="Download Workforce Segmentation Table",
             data=segmentation_table.to_csv(index=False).encode("utf-8"),
