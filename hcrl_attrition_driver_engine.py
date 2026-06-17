@@ -30,13 +30,25 @@ class AttritionDriverReport:
 
 EXCLUDED_COLUMNS = {
     "employee_id",
+
     "predicted_attrition_probability",
+
     "expected_attrition_cost",
+    "expected_attrition_cost_low",
+    "expected_attrition_cost_high",
+
     "replacement_cost",
     "replacement_cost_low",
     "replacement_cost_high",
-    "separation_outcome",
+
+    "replacement_cost_multiplier_base",
+    "replacement_cost_multiplier_low",
+    "replacement_cost_multiplier_high",
+
+    "annual_wage",
+
     "Attrition",
+    "separation_outcome",
 }
 
 
@@ -184,6 +196,10 @@ def build_attrition_driver_table(
         "absolute_association_value",
         ascending=False,
     ).drop(columns=["absolute_association_value"])
+    driver_table["driver_rank"] = range(
+    1,
+    len(driver_table) + 1,
+    )
 
     warnings.append(
         "Driver analysis identifies statistical associations with predicted attrition risk. "
