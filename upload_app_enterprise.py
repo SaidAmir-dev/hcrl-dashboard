@@ -763,12 +763,12 @@ st.info(
     "The analysis does not establish causality and should not be interpreted as an "
     "automated employment recommendation."
 )
-    st.download_button(
-        label="Download Attrition Driver Table",
-        data=driver_table.to_csv(index=False).encode("utf-8"),
-        file_name="hcrl_attrition_driver_intelligence.csv",
-        mime="text/csv",
-    )
+st.download_button(
+    label="Download Attrition Driver Table",
+    data=driver_table.to_csv(index=False).encode("utf-8"),
+    file_name="hcrl_attrition_driver_intelligence.csv",
+    mime="text/csv",
+)
 
 # =====================================================
 # 17. MANAGEMENT HYPOTHESIS ENGINE
