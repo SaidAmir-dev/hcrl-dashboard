@@ -176,6 +176,29 @@ HYPOTHESIS_LIBRARY = {
             "Review whether field-of-study differences reflect role specialization or labor-market alternatives."
         ),
     },
+        "Employee Experience": {
+        "review_area": "Employee Experience",
+        "management_hypothesis": (
+            "Workforce experience may be associated with retention outcomes. "
+            "Review whether less-experienced employee groups exhibit elevated attrition risk, "
+            "and evaluate onboarding, mentoring, development, and career support programs."
+        ),
+    },
+    "Employee Tenure": {
+        "review_area": "Employee Tenure",
+        "management_hypothesis": (
+            "Employee tenure may be associated with retention outcomes. "
+            "Review whether attrition is concentrated among newer employees and evaluate "
+            "onboarding quality, early-tenure support, and retention during critical tenure periods."
+        ),
+    },
+    "Role Stability": {
+        "review_area": "Role Stability",
+        "management_hypothesis": (
+            "Time in current role may be associated with retention outcomes. "
+            "Review role stagnation, internal mobility timing, promotion timing, and role transition patterns."
+        ),
+    },
 }
 
 
