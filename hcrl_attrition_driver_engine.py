@@ -2,15 +2,13 @@
 HCRL Attrition Driver Intelligence Engine
 
 Purpose:
-Identify variables statistically associated with predicted attrition risk.
+Identify original workforce variables statistically associated with
+predicted attrition risk.
 
 No causal claims.
 No arbitrary thresholds.
 No fake recommendations.
 No automated employment decisions.
-
-This engine answers:
-"Which observed variables are most associated with attrition risk in this dataset?"
 """
 
 from __future__ import annotations
@@ -44,11 +42,69 @@ EXCLUDED_COLUMNS = {
     "replacement_cost_multiplier_base",
     "replacement_cost_multiplier_low",
     "replacement_cost_multiplier_high",
+    "replacement_cost_tier",
 
     "annual_wage",
 
     "Attrition",
     "separation_outcome",
+
+    "matched_onet_title",
+    "matched_onet_code",
+    "normalized_title",
+    "candidate_titles",
+    "O*NET-SOC Code",
+    "O*NET-SOC Code_ai_reference",
+    "Title",
+
+    "onet_match_score",
+    "onet_match_method",
+    "onet_match_status",
+    "title_function",
+    "title_level",
+    "title_normalization_method",
+
+    "primary_work_type",
+    "secondary_work_type",
+    "priority_rank",
+    "share_of_total_cost",
+    "share_of_total_cost_pct",
+}
+
+
+DUPLICATE_DRIVER_MAP = {
+    "MonthlyIncome": "Compensation",
+    "monthly_income": "Compensation",
+
+    "YearsAtCompany": "Tenure",
+    "tenure_years": "Tenure",
+    "TotalWorkingYears": "Tenure",
+
+    "JobLevel": "Career Progression",
+    "YearsInCurrentRole": "Career Progression",
+    "YearsSinceLastPromotion": "Career Progression",
+
+    "YearsWithCurrManager": "Manager Stability",
+
+    "StockOptionLevel": "Long-Term Incentives",
+
+    "WorkLifeBalance": "Work-Life Balance",
+    "OverTime": "Workload",
+    "BusinessTravel": "Travel Burden",
+
+    "EnvironmentSatisfaction": "Work Environment",
+    "JobSatisfaction": "Job Satisfaction",
+    "RelationshipSatisfaction": "Relationship Satisfaction",
+    "JobInvolvement": "Job Involvement",
+
+    "Department": "Department",
+    "department": "Department",
+
+    "JobRole": "Occupation",
+    "job_title": "Occupation",
+
+    "Age": "Age",
+    "age": "Age",
 }
 
 
@@ -87,13 +143,14 @@ def build_attrition_driver_table(
         if col not in EXCLUDED_COLUMNS
         and not col.startswith("ai_")
         and not col.startswith("task_")
+        and not col.startswith("matched_")
+        and not col.startswith("onet_")
         and df[col].nunique(dropna=True) > 1
     ]
 
     for col in candidate_cols:
 
         series = df[col]
-
         numeric_series = pd.to_numeric(series, errors="coerce")
 
         if numeric_series.notna().mean() >= 0.8:
@@ -113,9 +170,13 @@ def build_attrition_driver_table(
                 method="spearman",
             )
 
+            if pd.isna(association):
+                continue
+
             rows.append(
                 {
                     "driver_variable": col,
+                    "driver_group": DUPLICATE_DRIVER_MAP.get(col, col),
                     "driver_type": "numeric",
                     "association_metric": "spearman_correlation_with_predicted_attrition_probability",
                     "association_value": association,
@@ -163,21 +224,29 @@ def build_attrition_driver_table(
                 .index
             ).iloc[0]
 
+            association = strongest[
+                "risk_difference_from_company_average"
+            ]
+
+            if pd.isna(association):
+                continue
+
             rows.append(
                 {
                     "driver_variable": col,
+                    "driver_group": DUPLICATE_DRIVER_MAP.get(col, col),
                     "driver_type": "categorical",
                     "association_metric": "largest_category_difference_from_company_average",
-                    "association_value": strongest["risk_difference_from_company_average"],
+                    "association_value": association,
                     "direction": (
                         "category_associated_with_higher_risk"
-                        if strongest["risk_difference_from_company_average"] > 0
+                        if association > 0
                         else "category_associated_with_lower_risk"
                     ),
                     "evidence_summary": (
                         f"For {col}, category '{strongest['category']}' differs from "
                         f"the company average predicted attrition probability by "
-                        f"{strongest['risk_difference_from_company_average']:.3f}."
+                        f"{association:.3f}."
                     ),
                 }
             )
@@ -192,14 +261,37 @@ def build_attrition_driver_table(
         driver_table["association_value"].abs()
     )
 
-    driver_table = driver_table.sort_values(
-        "absolute_association_value",
-        ascending=False,
-    ).drop(columns=["absolute_association_value"])
-    driver_table["driver_rank"] = range(
-    1,
-    len(driver_table) + 1,
+    driver_table = (
+        driver_table
+        .sort_values(
+            "absolute_association_value",
+            ascending=False,
+        )
+        .drop_duplicates(
+            subset=["driver_group"],
+            keep="first",
+        )
+        .drop(columns=["absolute_association_value"])
+        .reset_index(drop=True)
     )
+
+    driver_table["driver_rank"] = range(
+        1,
+        len(driver_table) + 1,
+    )
+
+    driver_table = driver_table[
+        [
+            "driver_rank",
+            "driver_variable",
+            "driver_group",
+            "driver_type",
+            "association_metric",
+            "association_value",
+            "direction",
+            "evidence_summary",
+        ]
+    ]
 
     warnings.append(
         "Driver analysis identifies statistical associations with predicted attrition risk. "
