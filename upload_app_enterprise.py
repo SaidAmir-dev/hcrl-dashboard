@@ -700,10 +700,82 @@ else:
         for warning in driver_report.warnings:
             st.write(f"- {warning}")
 
+    st.subheader("Attrition Driver Evidence Table")
+
     st.dataframe(
         driver_table.head(25),
         use_container_width=True,
     )
+
+    # -----------------------------------------------------
+    # Top Attrition Drivers
+    # -----------------------------------------------------
+
+    if not driver_table.empty:
+
+        driver_display = driver_table.copy()
+
+        if "driver_rank" not in driver_display.columns:
+            driver_display["driver_rank"] = range(
+                1,
+                len(driver_display) + 1,
+            )
+
+        top_driver_cols = [
+            col for col in [
+                "driver_rank",
+                "driver_variable",
+                "association_value",
+                "direction",
+                "evidence_summary",
+            ]
+            if col in driver_display.columns
+        ]
+
+        st.subheader("Top Attrition Drivers")
+
+        st.dataframe(
+            driver_display.head(10)[top_driver_cols],
+            use_container_width=True,
+        )
+
+        st.subheader("Driver Interpretation")
+
+        top5 = driver_display.head(5)
+
+        for _, row in top5.iterrows():
+
+            driver_name = row.get(
+                "driver_variable",
+                "Unknown driver",
+            )
+
+            association_value = row.get(
+                "association_value",
+                None,
+            )
+
+            direction = row.get(
+                "direction",
+                "association detected",
+            )
+
+            try:
+                association_text = f"{float(association_value):.3f}"
+            except Exception:
+                association_text = "N/A"
+
+            st.write(
+                f"- {driver_name} "
+                f"({association_text}) "
+                f"→ {direction}"
+            )
+
+        st.info(
+            "These variables are statistically associated with predicted attrition risk. "
+            "The analysis does not establish causality and should not be interpreted "
+            "as an automated employment recommendation."
+        )
 
     st.download_button(
         label="Download Attrition Driver Table",
