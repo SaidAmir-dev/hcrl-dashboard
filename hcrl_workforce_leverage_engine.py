@@ -2,12 +2,10 @@
 HCRL Workforce Leverage Intelligence Engine
 
 Purpose:
-Aggregate attrition drivers into executive-level workforce themes.
+Aggregate cleaned attrition drivers into executive-level workforce themes.
 
 This engine helps answer:
-
-"Which workforce domains show the strongest evidence
-of association with attrition risk?"
+"Which workforce domains show the strongest evidence of association with attrition risk?"
 
 No causal claims.
 No automated decisions.
@@ -29,6 +27,22 @@ class WorkforceLeverageReport:
     errors: List[str]
 
 
+VALID_LEVERAGE_GROUPS = {
+    "Compensation",
+    "Career Progression",
+    "Employee Experience",
+    "Manager Stability",
+    "Workload",
+    "Work Environment",
+    "Travel / Commute Burden",
+    "Training and Development",
+    "Department",
+    "Occupation",
+    "Education",
+    "Performance",
+}
+
+
 def build_workforce_leverage_table(
     driver_table: pd.DataFrame,
 ) -> Tuple[pd.DataFrame, WorkforceLeverageReport]:
@@ -38,6 +52,7 @@ def build_workforce_leverage_table(
 
     required_cols = [
         "driver_group",
+        "driver_variable",
         "association_value",
         "actionability",
     ]
@@ -48,86 +63,66 @@ def build_workforce_leverage_table(
     ]
 
     if missing:
-        errors.append(
-            f"Missing required columns: {missing}"
-        )
+        errors.append(f"Missing required columns: {missing}")
 
-        return (
-            pd.DataFrame(),
-            WorkforceLeverageReport(
-                leverage_areas_identified=0,
-                warnings=warnings,
-                errors=errors,
-            ),
+        return pd.DataFrame(), WorkforceLeverageReport(
+            leverage_areas_identified=0,
+            warnings=warnings,
+            errors=errors,
         )
 
     df = driver_table.copy()
+
+    df = df[
+        df["driver_group"].isin(VALID_LEVERAGE_GROUPS)
+    ].copy()
 
     df["association_value"] = pd.to_numeric(
         df["association_value"],
         errors="coerce",
     )
 
-    df = df[
-        df["association_value"].notna()
-    ].copy()
+    df = df[df["association_value"].notna()].copy()
 
     if df.empty:
-        errors.append(
-            "No valid driver evidence available."
+        errors.append("No valid cleaned driver evidence available.")
+
+        return pd.DataFrame(), WorkforceLeverageReport(
+            leverage_areas_identified=0,
+            warnings=warnings,
+            errors=errors,
         )
 
-        return (
-            pd.DataFrame(),
-            WorkforceLeverageReport(
-                leverage_areas_identified=0,
-                warnings=warnings,
-                errors=errors,
-            ),
-        )
-
-    df["absolute_association"] = (
-        df["association_value"].abs()
-    )
+    df["absolute_association"] = df["association_value"].abs()
 
     leverage = (
         df.groupby("driver_group")
         .agg(
-            evidence_drivers=(
-                "driver_group",
-                "count",
+            evidence_drivers=("driver_variable", "count"),
+            supporting_variables=(
+                "driver_variable",
+                lambda x: " | ".join(sorted(set(map(str, x)))),
             ),
-            strongest_association=(
-                "absolute_association",
-                "max",
-            ),
-            average_association=(
-                "absolute_association",
-                "mean",
-            ),
-            actionability=(
-                "actionability",
-                "first",
-            ),
+            strongest_association=("absolute_association", "max"),
+            average_association=("absolute_association", "mean"),
+            actionability=("actionability", "first"),
         )
         .reset_index()
     )
 
     leverage = leverage.sort_values(
-        "strongest_association",
-        ascending=False,
-    )
+        ["actionability", "strongest_association"],
+        ascending=[True, False],
+    ).reset_index(drop=True)
 
-    leverage["leverage_rank"] = range(
-        1,
-        len(leverage) + 1,
-    )
+    leverage["leverage_rank"] = range(1, len(leverage) + 1)
 
     leverage = leverage[
         [
             "leverage_rank",
             "driver_group",
             "evidence_drivers",
+            "supporting_variables",
             "strongest_association",
             "average_association",
             "actionability",
@@ -135,15 +130,13 @@ def build_workforce_leverage_table(
     ]
 
     warnings.append(
-        "Leverage areas represent aggregated evidence from the attrition driver engine. "
-        "They identify areas associated with attrition risk but do not establish causality."
+        "Leverage areas are aggregated from cleaned attrition driver evidence. "
+        "They identify management domains statistically associated with attrition risk, "
+        "but they do not establish causality or prescribe interventions."
     )
 
-    return (
-        leverage,
-        WorkforceLeverageReport(
-            leverage_areas_identified=len(leverage),
-            warnings=warnings,
-            errors=errors,
-        ),
+    return leverage, WorkforceLeverageReport(
+        leverage_areas_identified=len(leverage),
+        warnings=warnings,
+        errors=errors,
     )
