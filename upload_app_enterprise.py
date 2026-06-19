@@ -857,51 +857,6 @@ else:
         file_name="hcrl_workforce_leverage.csv",
         mime="text/csv",
     )
-
-# =====================================================
-# 18. WORKFORCE LEVERAGE INTELLIGENCE
-# =====================================================
-
-st.header("18. Workforce Leverage Intelligence")
-
-leverage_table, leverage_report = (
-    build_workforce_leverage_table(
-        driver_table
-    )
-)
-
-if leverage_report.errors:
-
-    st.error("Leverage engine errors:")
-
-    for error in leverage_report.errors:
-        st.write(error)
-
-else:
-
-    st.metric(
-        "Leverage Areas Identified",
-        leverage_report.leverage_areas_identified,
-    )
-
-    if leverage_report.warnings:
-
-        st.warning("Leverage warnings:")
-
-        for warning in leverage_report.warnings:
-            st.write(f"- {warning}")
-
-    st.dataframe(
-        leverage_table,
-        use_container_width=True,
-    )
-
-    st.download_button(
-        label="Download Workforce Leverage Table",
-        data=leverage_table.to_csv(index=False).encode("utf-8"),
-        file_name="hcrl_workforce_leverage.csv",
-        mime="text/csv",
-    )
 with st.expander("Methodology and Limitations"):
     st.write(
         """
