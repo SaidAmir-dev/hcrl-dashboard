@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Tuple
 
+import math
 import pandas as pd
 
 
@@ -68,14 +69,18 @@ def build_workforce_leverage_table(
 
     df = driver_table.copy()
 
-    df = df[df["driver_group"].isin(VALID_LEVERAGE_GROUPS)].copy()
+    df = df[
+        df["driver_group"].isin(VALID_LEVERAGE_GROUPS)
+    ].copy()
 
     df["association_value"] = pd.to_numeric(
         df["association_value"],
         errors="coerce",
     )
 
-    df = df[df["association_value"].notna()].copy()
+    df = df[
+        df["association_value"].notna()
+    ].copy()
 
     if df.empty:
         errors.append("No valid cleaned driver evidence available.")
@@ -100,7 +105,7 @@ def build_workforce_leverage_table(
 
     leverage["leverage_score"] = (
         leverage["average_association"]
-        * leverage["evidence_drivers"]
+        * leverage["evidence_drivers"].apply(math.sqrt)
     )
 
     leverage = leverage.sort_values(
@@ -108,7 +113,10 @@ def build_workforce_leverage_table(
         ascending=[True, False, False],
     ).reset_index(drop=True)
 
-    leverage["leverage_rank"] = range(1, len(leverage) + 1)
+    leverage["leverage_rank"] = range(
+        1,
+        len(leverage) + 1,
+    )
 
     leverage = leverage[
         [
@@ -124,9 +132,10 @@ def build_workforce_leverage_table(
     ]
 
     warnings.append(
-        "Leverage areas are aggregated from cleaned attrition driver evidence. "
-        "They identify management domains statistically associated with attrition risk, "
-        "but they do not establish causality or prescribe interventions."
+        "Leverage score is calculated as average observed association multiplied by "
+        "the square root of the number of supporting drivers. This rewards both "
+        "strength and breadth of evidence without over-rewarding large driver groups. "
+        "Leverage areas do not establish causality or prescribe interventions."
     )
 
     return leverage, WorkforceLeverageReport(
