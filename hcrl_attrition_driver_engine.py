@@ -86,9 +86,15 @@ NON_ACTIONABLE_DEMOGRAPHICS = {
 }
 
 
+COLUMN_NORMALIZATION = {
+    "monthly_income": "MonthlyIncome",
+    "department": "Department",
+    "tenure_years": "YearsAtCompany",
+}
+
+
 DRIVER_GROUPS = {
     "MonthlyIncome": "Compensation",
-    "monthly_income": "Compensation",
     "PercentSalaryHike": "Compensation",
     "StockOptionLevel": "Compensation",
 
@@ -96,7 +102,6 @@ DRIVER_GROUPS = {
     "YearsInCurrentRole": "Career Progression",
     "YearsSinceLastPromotion": "Career Progression",
     "YearsAtCompany": "Career Progression",
-    "tenure_years": "Career Progression",
 
     "TotalWorkingYears": "Employee Experience",
     "NumCompaniesWorked": "Employee Experience",
@@ -117,7 +122,6 @@ DRIVER_GROUPS = {
     "TrainingTimesLastYear": "Training and Development",
 
     "Department": "Department",
-    "department": "Department",
 
     "JobRole": "Occupation",
     "job_title": "Occupation",
@@ -172,7 +176,7 @@ def build_attrition_driver_table(
 
     candidate_cols = [
         col for col in df.columns
-        if col in DRIVER_GROUPS
+        if COLUMN_NORMALIZATION.get(col, col) in DRIVER_GROUPS
         and col not in EXCLUDED_COLUMNS
         and col not in NON_ACTIONABLE_DEMOGRAPHICS
         and df[col].nunique(dropna=True) > 1
@@ -180,7 +184,9 @@ def build_attrition_driver_table(
 
     for col in candidate_cols:
 
-        driver_group = DRIVER_GROUPS[col]
+        normalized_col = COLUMN_NORMALIZATION.get(col, col)
+        driver_group = DRIVER_GROUPS[normalized_col]
+
         series = df[col]
         numeric_series = pd.to_numeric(series, errors="coerce")
 
@@ -206,7 +212,8 @@ def build_attrition_driver_table(
 
             rows.append(
                 {
-                    "driver_variable": col,
+                    "driver_variable": normalized_col,
+                    "source_column": col,
                     "driver_group": driver_group,
                     "driver_type": "numeric",
                     "association_metric": "spearman_correlation_with_predicted_attrition_probability",
@@ -217,7 +224,7 @@ def build_attrition_driver_table(
                         else "higher_values_associated_with_lower_risk"
                     ),
                     "evidence_summary": (
-                        f"{col} has a Spearman association of "
+                        f"{normalized_col} has a Spearman association of "
                         f"{association:.3f} with predicted attrition probability."
                     ),
                 }
@@ -258,16 +265,15 @@ def build_attrition_driver_table(
                 .index
             ).iloc[0]
 
-            association = strongest[
-                "risk_difference_from_company_average"
-            ]
+            association = strongest["risk_difference_from_company_average"]
 
             if pd.isna(association):
                 continue
 
             rows.append(
                 {
-                    "driver_variable": col,
+                    "driver_variable": normalized_col,
+                    "source_column": col,
                     "driver_group": driver_group,
                     "driver_type": "categorical",
                     "association_metric": "largest_category_difference_from_company_average",
@@ -278,7 +284,7 @@ def build_attrition_driver_table(
                         else "category_associated_with_lower_risk"
                     ),
                     "evidence_summary": (
-                        f"For {col}, category '{strongest['category']}' differs from "
+                        f"For {normalized_col}, category '{strongest['category']}' differs from "
                         f"the company average predicted attrition probability by "
                         f"{association:.3f}."
                     ),
@@ -300,6 +306,10 @@ def build_attrition_driver_table(
         .sort_values(
             "absolute_association_value",
             ascending=False,
+        )
+        .drop_duplicates(
+            subset=["driver_variable", "driver_group"],
+            keep="first",
         )
         .drop(columns=["absolute_association_value"])
         .reset_index(drop=True)
@@ -326,6 +336,7 @@ def build_attrition_driver_table(
             "driver_rank",
             "driver_group",
             "driver_variable",
+            "source_column",
             "driver_type",
             "association_metric",
             "association_value",
@@ -337,7 +348,8 @@ def build_attrition_driver_table(
 
     warnings.append(
         "Driver analysis keeps all valid driver variables within each business group. "
-        "It identifies statistical associations with predicted attrition risk, "
+        "Duplicate source aliases are normalized before reporting. "
+        "The analysis identifies statistical associations with predicted attrition risk, "
         "but does not prove causality or prescribe interventions."
     )
 
