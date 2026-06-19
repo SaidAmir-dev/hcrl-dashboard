@@ -5,7 +5,7 @@ Purpose:
 Aggregate cleaned attrition drivers into executive-level workforce themes.
 
 This engine helps answer:
-"Which workforce domains show the strongest evidence of association with attrition risk?"
+"Which workforce domains show the strongest combined evidence of association with attrition risk?"
 
 No causal claims.
 No automated decisions.
@@ -64,18 +64,11 @@ def build_workforce_leverage_table(
 
     if missing:
         errors.append(f"Missing required columns: {missing}")
-
-        return pd.DataFrame(), WorkforceLeverageReport(
-            leverage_areas_identified=0,
-            warnings=warnings,
-            errors=errors,
-        )
+        return pd.DataFrame(), WorkforceLeverageReport(0, warnings, errors)
 
     df = driver_table.copy()
 
-    df = df[
-        df["driver_group"].isin(VALID_LEVERAGE_GROUPS)
-    ].copy()
+    df = df[df["driver_group"].isin(VALID_LEVERAGE_GROUPS)].copy()
 
     df["association_value"] = pd.to_numeric(
         df["association_value"],
@@ -86,19 +79,14 @@ def build_workforce_leverage_table(
 
     if df.empty:
         errors.append("No valid cleaned driver evidence available.")
-
-        return pd.DataFrame(), WorkforceLeverageReport(
-            leverage_areas_identified=0,
-            warnings=warnings,
-            errors=errors,
-        )
+        return pd.DataFrame(), WorkforceLeverageReport(0, warnings, errors)
 
     df["absolute_association"] = df["association_value"].abs()
 
     leverage = (
         df.groupby("driver_group")
         .agg(
-            evidence_drivers=("driver_variable", "count"),
+            evidence_drivers=("driver_variable", "nunique"),
             supporting_variables=(
                 "driver_variable",
                 lambda x: " | ".join(sorted(set(map(str, x)))),
@@ -110,9 +98,14 @@ def build_workforce_leverage_table(
         .reset_index()
     )
 
+    leverage["leverage_score"] = (
+        leverage["average_association"]
+        * leverage["evidence_drivers"]
+    )
+
     leverage = leverage.sort_values(
-        ["actionability", "strongest_association"],
-        ascending=[True, False],
+        ["actionability", "leverage_score", "strongest_association"],
+        ascending=[True, False, False],
     ).reset_index(drop=True)
 
     leverage["leverage_rank"] = range(1, len(leverage) + 1)
@@ -125,6 +118,7 @@ def build_workforce_leverage_table(
             "supporting_variables",
             "strongest_association",
             "average_association",
+            "leverage_score",
             "actionability",
         ]
     ]
