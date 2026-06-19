@@ -180,15 +180,12 @@ def build_attrition_driver_table(
 
     for col in candidate_cols:
 
-        driver_group = DRIVER_GROUPS.get(col)
-
-        if driver_group is None:
-            continue
-
+        driver_group = DRIVER_GROUPS[col]
         series = df[col]
         numeric_series = pd.to_numeric(series, errors="coerce")
 
         if numeric_series.notna().mean() >= 0.8:
+
             temp = pd.DataFrame(
                 {
                     "x": numeric_series,
@@ -213,7 +210,7 @@ def build_attrition_driver_table(
                     "driver_group": driver_group,
                     "driver_type": "numeric",
                     "association_metric": "spearman_correlation_with_predicted_attrition_probability",
-                    "association_value": association,
+                    "association_value": float(association),
                     "direction": (
                         "higher_values_associated_with_higher_risk"
                         if association > 0
@@ -227,12 +224,16 @@ def build_attrition_driver_table(
             )
 
         else:
+
             temp = pd.DataFrame(
                 {
                     "category": series.astype(str),
                     "risk": df[target_col],
                 }
             ).dropna()
+
+            if temp.empty:
+                continue
 
             group_stats = (
                 temp.groupby("category")
@@ -270,7 +271,7 @@ def build_attrition_driver_table(
                     "driver_group": driver_group,
                     "driver_type": "categorical",
                     "association_metric": "largest_category_difference_from_company_average",
-                    "association_value": association,
+                    "association_value": float(association),
                     "direction": (
                         "category_associated_with_higher_risk"
                         if association > 0
@@ -300,6 +301,7 @@ def build_attrition_driver_table(
             "absolute_association_value",
             ascending=False,
         )
+        .drop(columns=["absolute_association_value"])
         .reset_index(drop=True)
     )
 
@@ -334,8 +336,9 @@ def build_attrition_driver_table(
     ]
 
     warnings.append(
-        "Driver analysis identifies statistical associations with predicted attrition risk. "
-        "It does not prove causality or prescribe interventions."
+        "Driver analysis keeps all valid driver variables within each business group. "
+        "It identifies statistical associations with predicted attrition risk, "
+        "but does not prove causality or prescribe interventions."
     )
 
     return driver_table, AttritionDriverReport(
