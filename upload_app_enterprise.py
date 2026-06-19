@@ -693,12 +693,29 @@ if driver_report.errors:
     st.error("Attrition driver errors:")
     for error in driver_report.errors:
         st.write(error)
+    driver_table = pd.DataFrame()
 
 else:
-    st.metric(
-        "Drivers Analyzed",
-        f"{driver_report.drivers_analyzed:,}",
-    )
+    valid_driver_groups = {
+        "Compensation",
+        "Career Progression",
+        "Employee Experience",
+        "Manager Stability",
+        "Workload",
+        "Work Environment",
+        "Travel / Commute Burden",
+        "Training and Development",
+        "Department",
+        "Occupation",
+        "Education",
+        "Performance",
+    }
+
+    driver_table = driver_table[
+        driver_table["driver_group"].isin(valid_driver_groups)
+    ].copy()
+
+    st.metric("Drivers Analyzed", f"{len(driver_table):,}")
 
     if driver_report.warnings:
         st.warning("Driver analysis warnings:")
@@ -706,73 +723,56 @@ else:
             st.write(f"- {warning}")
 
     st.subheader("Attrition Driver Evidence Table")
+    st.dataframe(driver_table.head(25), use_container_width=True)
 
-st.dataframe(
-    driver_table.head(25),
-    use_container_width=True,
-)
+    st.subheader("Top Actionable Attrition Drivers")
 
-# -----------------------------------------------------
-# Top Actionable Attrition Drivers
-# -----------------------------------------------------
-
-st.subheader("Top Actionable Attrition Drivers")
-
-if "actionability" in driver_table.columns:
     actionable_drivers = driver_table[
         driver_table["actionability"] == "Actionable"
     ].copy()
-else:
-    actionable_drivers = driver_table.copy()
 
-top_drivers = actionable_drivers.head(10)[
-    [
-        "driver_rank",
-        "driver_group",
-        "driver_variable",
-        "association_value",
-        "direction",
-        "actionability",
-        "evidence_summary",
+    top_drivers = actionable_drivers.head(10)[
+        [
+            "driver_rank",
+            "driver_group",
+            "driver_variable",
+            "association_value",
+            "direction",
+            "actionability",
+            "evidence_summary",
+        ]
     ]
-]
 
-st.dataframe(
-    top_drivers,
-    use_container_width=True,
-)
+    st.dataframe(top_drivers, use_container_width=True)
 
-# -----------------------------------------------------
-# Driver Interpretation
-# -----------------------------------------------------
+    st.subheader("Driver Interpretation")
 
-st.subheader("Driver Interpretation")
+    for _, row in actionable_drivers.head(5).iterrows():
 
-for _, row in actionable_drivers.head(5).iterrows():
+        direction_text = (
+            "higher values are associated with higher predicted attrition risk"
+            if row["association_value"] > 0
+            else "higher values are associated with lower predicted attrition risk"
+        )
 
-    direction_text = (
-        "higher values are associated with higher predicted attrition risk"
-        if row["association_value"] > 0
-        else "higher values are associated with lower predicted attrition risk"
+        st.write(
+            f"• **{row['driver_group']}** "
+            f"({row['association_value']:.3f}): "
+            f"{direction_text}."
+        )
+
+    st.info(
+        "These business drivers are statistically associated with predicted attrition risk. "
+        "The analysis does not establish causality and should not be interpreted as an "
+        "automated employment recommendation."
     )
 
-    st.write(
-        f"• **{row['driver_group']}** "
-        f"({row['association_value']:.3f}): "
-        f"{direction_text}."
+    st.download_button(
+        label="Download Attrition Driver Table",
+        data=driver_table.to_csv(index=False).encode("utf-8"),
+        file_name="hcrl_attrition_driver_intelligence.csv",
+        mime="text/csv",
     )
-
-st.info(
-    "These business drivers are statistically associated with predicted attrition risk. "
-    "The analysis does not establish causality and should not be interpreted as an "
-    "automated employment recommendation."
-)
-st.download_button(
-    label="Download Attrition Driver Table",
-    data=driver_table.to_csv(index=False).encode("utf-8"),
-    file_name="hcrl_attrition_driver_intelligence.csv",
-    mime="text/csv",
-)
 
 # =====================================================
 # 17. MANAGEMENT HYPOTHESIS ENGINE
@@ -810,6 +810,7 @@ else:
         "observed_pattern",
         "management_hypothesis",
     ]
+
     st.dataframe(
         recommendation_table[display_cols].head(25),
         use_container_width=True,
@@ -819,6 +820,41 @@ else:
         label="Download Management Hypothesis Table",
         data=recommendation_table.to_csv(index=False).encode("utf-8"),
         file_name="hcrl_management_hypotheses.csv",
+        mime="text/csv",
+    )
+
+# =====================================================
+# 18. WORKFORCE LEVERAGE INTELLIGENCE
+# =====================================================
+
+st.header("18. Workforce Leverage Intelligence")
+
+leverage_table, leverage_report = build_workforce_leverage_table(
+    driver_table
+)
+
+if leverage_report.errors:
+    st.error("Leverage engine errors:")
+    for error in leverage_report.errors:
+        st.write(error)
+
+else:
+    st.metric(
+        "Leverage Areas Identified",
+        leverage_report.leverage_areas_identified,
+    )
+
+    if leverage_report.warnings:
+        st.warning("Leverage warnings:")
+        for warning in leverage_report.warnings:
+            st.write(f"- {warning}")
+
+    st.dataframe(leverage_table, use_container_width=True)
+
+    st.download_button(
+        label="Download Workforce Leverage Table",
+        data=leverage_table.to_csv(index=False).encode("utf-8"),
+        file_name="hcrl_workforce_leverage.csv",
         mime="text/csv",
     )
 
