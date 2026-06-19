@@ -109,8 +109,8 @@ def build_workforce_leverage_table(
     )
 
     leverage = leverage.sort_values(
-        ["actionability", "leverage_score", "strongest_association"],
-        ascending=[True, False, False],
+        ["leverage_score", "strongest_association"],
+        ascending=[False, False],
     ).reset_index(drop=True)
 
     leverage["leverage_rank"] = range(
