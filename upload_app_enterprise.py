@@ -5,6 +5,7 @@ import pandas as pd
 
 from hcrl_schema import standardize_workforce_data
 from hcrl_onet_mapper import map_to_onet
+
 from hcrl_driver_recommendation_engine import build_driver_recommendations
 from hcrl_attrition_driver_engine import build_attrition_driver_table
 from hcrl_task_intelligence_engine import attach_task_intelligence
@@ -14,6 +15,9 @@ from hcrl_segmentation_engine import build_segmentation_table
 from hcrl_cost_engine import estimate_expected_attrition_cost
 from hcrl_ai_readiness_engine import attach_ai_readiness
 from hcrl_prioritization_engine import build_prioritization_table
+from hcrl_workforce_leverage_engine import (
+    build_workforce_leverage_table,
+)
 from hcrl_scenario_engine import build_scenario_table
 from hcrl_executive_report_engine import (
     build_executive_focus_table
@@ -815,6 +819,51 @@ else:
         label="Download Management Hypothesis Table",
         data=recommendation_table.to_csv(index=False).encode("utf-8"),
         file_name="hcrl_management_hypotheses.csv",
+        mime="text/csv",
+    )
+
+# =====================================================
+# 18. WORKFORCE LEVERAGE INTELLIGENCE
+# =====================================================
+
+st.header("18. Workforce Leverage Intelligence")
+
+leverage_table, leverage_report = (
+    build_workforce_leverage_table(
+        driver_table
+    )
+)
+
+if leverage_report.errors:
+
+    st.error("Leverage engine errors:")
+
+    for error in leverage_report.errors:
+        st.write(error)
+
+else:
+
+    st.metric(
+        "Leverage Areas Identified",
+        leverage_report.leverage_areas_identified,
+    )
+
+    if leverage_report.warnings:
+
+        st.warning("Leverage warnings:")
+
+        for warning in leverage_report.warnings:
+            st.write(f"- {warning}")
+
+    st.dataframe(
+        leverage_table,
+        use_container_width=True,
+    )
+
+    st.download_button(
+        label="Download Workforce Leverage Table",
+        data=leverage_table.to_csv(index=False).encode("utf-8"),
+        file_name="hcrl_workforce_leverage.csv",
         mime="text/csv",
     )
 with st.expander("Methodology and Limitations"):
