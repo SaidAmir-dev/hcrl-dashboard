@@ -28,6 +28,15 @@ class AttritionDriverReport:
 
 EXCLUDED_COLUMNS = {
     "employee_id",
+    "EmployeeNumber",
+    "EmployeeCount",
+    "StandardHours",
+    "Over18",
+
+    "DailyRate",
+    "HourlyRate",
+    "MonthlyRate",
+
     "predicted_attrition_probability",
     "expected_attrition_cost",
     "expected_attrition_cost_low",
@@ -40,8 +49,10 @@ EXCLUDED_COLUMNS = {
     "replacement_cost_multiplier_high",
     "replacement_cost_tier",
     "annual_wage",
+
     "Attrition",
     "separation_outcome",
+
     "matched_onet_title",
     "matched_onet_code",
     "normalized_title",
@@ -49,12 +60,14 @@ EXCLUDED_COLUMNS = {
     "O*NET-SOC Code",
     "O*NET-SOC Code_ai_reference",
     "Title",
+
     "onet_match_score",
     "onet_match_method",
     "onet_match_status",
     "title_function",
     "title_level",
     "title_normalization_method",
+
     "primary_work_type",
     "secondary_work_type",
     "priority_rank",
@@ -159,16 +172,19 @@ def build_attrition_driver_table(
 
     candidate_cols = [
         col for col in df.columns
-        if col not in EXCLUDED_COLUMNS
+        if col in DRIVER_GROUPS
+        and col not in EXCLUDED_COLUMNS
         and col not in NON_ACTIONABLE_DEMOGRAPHICS
-        and not col.startswith("ai_")
-        and not col.startswith("task_")
-        and not col.startswith("matched_")
-        and not col.startswith("onet_")
         and df[col].nunique(dropna=True) > 1
     ]
 
     for col in candidate_cols:
+
+        driver_group = DRIVER_GROUPS.get(col)
+
+        if driver_group is None:
+            continue
+
         series = df[col]
         numeric_series = pd.to_numeric(series, errors="coerce")
 
@@ -194,7 +210,7 @@ def build_attrition_driver_table(
             rows.append(
                 {
                     "driver_variable": col,
-                    "driver_group": DRIVER_GROUPS.get(col, col),
+                    "driver_group": driver_group,
                     "driver_type": "numeric",
                     "association_metric": "spearman_correlation_with_predicted_attrition_probability",
                     "association_value": association,
@@ -251,7 +267,7 @@ def build_attrition_driver_table(
             rows.append(
                 {
                     "driver_variable": col,
-                    "driver_group": DRIVER_GROUPS.get(col, col),
+                    "driver_group": driver_group,
                     "driver_type": "categorical",
                     "association_metric": "largest_category_difference_from_company_average",
                     "association_value": association,
@@ -283,10 +299,6 @@ def build_attrition_driver_table(
         .sort_values(
             "absolute_association_value",
             ascending=False,
-        )
-        .drop_duplicates(
-            subset=["driver_group"],
-            keep="first",
         )
         .reset_index(drop=True)
     )
