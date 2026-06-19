@@ -76,35 +76,32 @@ NON_ACTIONABLE_DEMOGRAPHICS = {
 DRIVER_GROUPS = {
     "MonthlyIncome": "Compensation",
     "monthly_income": "Compensation",
-    "PercentSalaryHike": "Compensation Growth",
+    "PercentSalaryHike": "Compensation",
+    "StockOptionLevel": "Compensation",
 
     "JobLevel": "Career Progression",
+    "YearsInCurrentRole": "Career Progression",
     "YearsSinceLastPromotion": "Career Progression",
+    "YearsAtCompany": "Career Progression",
+    "tenure_years": "Career Progression",
+
+    "TotalWorkingYears": "Employee Experience",
+    "NumCompaniesWorked": "Employee Experience",
 
     "YearsWithCurrManager": "Manager Stability",
 
     "OverTime": "Workload",
 
     "EnvironmentSatisfaction": "Work Environment",
-    "JobSatisfaction": "Job Satisfaction",
-    "RelationshipSatisfaction": "Relationship Satisfaction",
+    "JobSatisfaction": "Work Environment",
+    "RelationshipSatisfaction": "Work Environment",
+    "JobInvolvement": "Work Environment",
+    "WorkLifeBalance": "Work Environment",
 
-    "WorkLifeBalance": "Work-Life Balance",
+    "BusinessTravel": "Travel / Commute Burden",
+    "DistanceFromHome": "Travel / Commute Burden",
 
-    "StockOptionLevel": "Long-Term Incentives",
-
-    "BusinessTravel": "Travel Burden",
-    "DistanceFromHome": "Commute Burden",
-
-    "TrainingTimesLastYear": "Training",
-
-    "YearsAtCompany": "Employee Tenure",
-    "tenure_years": "Employee Tenure",
-
-    "TotalWorkingYears": "Employee Experience",
-    "YearsInCurrentRole": "Role Stability",
-
-    "JobInvolvement": "Job Engagement",
+    "TrainingTimesLastYear": "Training and Development",
 
     "Department": "Department",
     "department": "Department",
@@ -112,31 +109,21 @@ DRIVER_GROUPS = {
     "JobRole": "Occupation",
     "job_title": "Occupation",
 
-    "NumCompaniesWorked": "Career Mobility",
     "Education": "Education",
-    "EducationField": "Education Field",
+    "EducationField": "Education",
     "PerformanceRating": "Performance",
 }
 
 
 ACTIONABLE_GROUPS = {
     "Compensation",
-    "Compensation Growth",
     "Career Progression",
     "Manager Stability",
     "Workload",
-    "Training",
     "Work Environment",
-    "Job Satisfaction",
-    "Relationship Satisfaction",
-    "Work-Life Balance",
-    "Long-Term Incentives",
-    "Travel Burden",
-    "Commute Burden",
-    "Role Stability",
-    "Job Engagement",
+    "Travel / Commute Burden",
+    "Training and Development",
     "Department",
-    "Career Mobility",
     "Performance",
 }
 
