@@ -2,7 +2,7 @@
 HCRL Driver Recommendation Engine
 
 Purpose:
-Convert statistical attrition drivers into evidence-based management
+Convert statistical attrition driver groups into evidence-based management
 hypotheses.
 
 No causal claims.
@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Tuple
 
+import math
 import pandas as pd
 
 
@@ -30,173 +31,97 @@ HYPOTHESIS_LIBRARY = {
     "Compensation": {
         "review_area": "Compensation",
         "management_hypothesis": (
-            "Compensation differences may be associated with retention outcomes. "
-            "Review pay competitiveness, internal pay equity, and compensation "
-            "patterns in high-risk groups."
-        ),
-    },
-    "Compensation Growth": {
-        "review_area": "Compensation Growth",
-        "management_hypothesis": (
-            "Salary growth patterns may be associated with retention outcomes. "
-            "Review whether compensation progression is competitive across roles, "
-            "levels, and departments."
+            "Compensation signals may be associated with retention outcomes. "
+            "Review pay competitiveness, internal pay equity, salary progression, "
+            "and long-term incentive structures in high-risk workforce groups."
         ),
     },
     "Career Progression": {
         "review_area": "Career Progression",
         "management_hypothesis": (
-            "Career advancement indicators may be associated with retention outcomes. "
-            "Review promotion pathways, internal mobility, and role progression patterns."
+            "Career progression signals may be associated with retention outcomes. "
+            "Review promotion pathways, internal mobility, role progression, and "
+            "time-in-role patterns."
+        ),
+    },
+    "Employee Experience": {
+        "review_area": "Employee Experience",
+        "management_hypothesis": (
+            "Employee experience signals may be associated with retention outcomes. "
+            "Review onboarding quality, early-career support, prior mobility, and "
+            "experience differences across workforce segments."
         ),
     },
     "Manager Stability": {
         "review_area": "Management Quality",
         "management_hypothesis": (
             "Manager continuity may be associated with retention outcomes. "
-            "Review leadership stability, team structure, and manager-level retention patterns."
+            "Review leadership stability, manager transitions, team structure, "
+            "and manager-level retention patterns."
         ),
     },
     "Workload": {
         "review_area": "Workload",
         "management_hypothesis": (
-            "Workload indicators may be associated with retention outcomes. "
-            "Review overtime concentration, staffing levels, and workload distribution."
+            "Workload signals may be associated with retention outcomes. "
+            "Review overtime concentration, staffing levels, scheduling pressure, "
+            "and workload distribution."
         ),
     },
     "Work Environment": {
         "review_area": "Work Environment",
         "management_hypothesis": (
-            "Work environment indicators may be associated with retention outcomes. "
-            "Review employee feedback, workplace conditions, and department-level experience gaps."
+            "Work environment signals may be associated with retention outcomes. "
+            "Review job satisfaction, employee involvement, relationship quality, "
+            "work-life balance, and department-level experience gaps."
         ),
     },
-    "Job Satisfaction": {
-        "review_area": "Job Satisfaction",
+    "Travel / Commute Burden": {
+        "review_area": "Travel and Commute Burden",
         "management_hypothesis": (
-            "Job satisfaction indicators may be associated with retention outcomes. "
-            "Review employee engagement, role fit, and satisfaction differences across teams."
+            "Travel or commute burden may be associated with retention outcomes. "
+            "Review travel frequency, commute exposure, location strategy, and "
+            "flexibility options for affected groups."
         ),
     },
-    "Relationship Satisfaction": {
-        "review_area": "Relationship Quality",
-        "management_hypothesis": (
-            "Relationship satisfaction indicators may be associated with retention outcomes. "
-            "Review team climate, manager relationships, and collaboration patterns."
-        ),
-    },
-    "Work-Life Balance": {
-        "review_area": "Work-Life Balance",
-        "management_hypothesis": (
-            "Work-life balance indicators may be associated with retention outcomes. "
-            "Review workload patterns, scheduling pressure, and employee experience metrics."
-        ),
-    },
-    "Long-Term Incentives": {
-        "review_area": "Incentive Structure",
-        "management_hypothesis": (
-            "Long-term incentive structures may be associated with retention outcomes. "
-            "Review equity, retention incentives, and incentive eligibility across high-risk roles."
-        ),
-    },
-    "Travel Burden": {
-        "review_area": "Travel Burden",
-        "management_hypothesis": (
-            "Business travel patterns may be associated with retention outcomes. "
-            "Review travel frequency, role expectations, and travel concentration in high-risk groups."
-        ),
-    },
-    "Commute Burden": {
-        "review_area": "Commute Burden",
-        "management_hypothesis": (
-            "Commute burden may be associated with retention outcomes. "
-            "Review location strategy, flexibility options, and commute exposure for high-risk groups."
-        ),
-    },
-    "Training": {
+    "Training and Development": {
         "review_area": "Training and Development",
         "management_hypothesis": (
             "Training participation may be associated with retention outcomes. "
-            "Review learning access, onboarding quality, and development investment by segment."
-        ),
-    },
-    "Role Stability": {
-        "review_area": "Role Stability",
-        "management_hypothesis": (
-            "Time in current role may be associated with retention outcomes. "
-            "Review role transitions, internal mobility timing, and role stagnation patterns."
-        ),
-    },
-    "Job Engagement": {
-        "review_area": "Job Engagement",
-        "management_hypothesis": (
-            "Job involvement indicators may be associated with retention outcomes. "
-            "Review engagement patterns, role ownership, and participation across teams."
+            "Review learning access, onboarding support, skill development, and "
+            "development investment by segment."
         ),
     },
     "Department": {
         "review_area": "Department-Level Risk",
         "management_hypothesis": (
             "Department differences may be associated with retention outcomes. "
-            "Review whether risk is concentrated in specific functions or operating units."
+            "Review whether risk is concentrated in specific functions, operating "
+            "units, or management environments."
         ),
     },
     "Occupation": {
         "review_area": "Occupational Structure",
         "management_hypothesis": (
-            "Occupation differences may be associated with retention outcomes. "
-            "Review role-specific workforce dynamics, labor-market exposure, and occupation-level risk."
-        ),
-    },
-    "Career Mobility": {
-        "review_area": "Career Mobility",
-        "management_hypothesis": (
-            "Prior career mobility may be associated with retention outcomes. "
-            "Review whether external mobility history differs across high-risk employee groups."
-        ),
-    },
-    "Performance": {
-        "review_area": "Performance",
-        "management_hypothesis": (
-            "Performance indicators may be associated with retention outcomes. "
-            "Review whether performance ratings align with retention, rewards, and progression patterns."
+            "Occupation-level differences may be associated with retention outcomes. "
+            "Review role-specific workforce dynamics, labor-market exposure, hiring "
+            "pipelines, and occupation-level retention risk."
         ),
     },
     "Education": {
         "review_area": "Education Profile",
         "management_hypothesis": (
             "Education profile may be associated with retention outcomes. "
-            "Review whether education-related differences reflect role mix, career path, or labor-market dynamics."
+            "Review whether education-related differences reflect role mix, career "
+            "path, specialization, or external labor-market alternatives."
         ),
     },
-    "Education Field": {
-        "review_area": "Education Field",
+    "Performance": {
+        "review_area": "Performance",
         "management_hypothesis": (
-            "Education field may be associated with retention outcomes. "
-            "Review whether field-of-study differences reflect role specialization or labor-market alternatives."
-        ),
-    },
-        "Employee Experience": {
-        "review_area": "Employee Experience",
-        "management_hypothesis": (
-            "Workforce experience may be associated with retention outcomes. "
-            "Review whether less-experienced employee groups exhibit elevated attrition risk, "
-            "and evaluate onboarding, mentoring, development, and career support programs."
-        ),
-    },
-    "Employee Tenure": {
-        "review_area": "Employee Tenure",
-        "management_hypothesis": (
-            "Employee tenure may be associated with retention outcomes. "
-            "Review whether attrition is concentrated among newer employees and evaluate "
-            "onboarding quality, early-tenure support, and retention during critical tenure periods."
-        ),
-    },
-    "Role Stability": {
-        "review_area": "Role Stability",
-        "management_hypothesis": (
-            "Time in current role may be associated with retention outcomes. "
-            "Review role stagnation, internal mobility timing, promotion timing, and role transition patterns."
+            "Performance indicators may be associated with retention outcomes. "
+            "Review whether performance ratings align with rewards, progression, "
+            "manager feedback, and retention patterns."
         ),
     },
 }
@@ -224,7 +149,6 @@ def build_driver_recommendations(
 
     if missing:
         errors.append(f"Missing required columns: {missing}")
-
         return pd.DataFrame(), DriverRecommendationReport(
             recommendations_generated=0,
             warnings=warnings,
@@ -242,74 +166,72 @@ def build_driver_recommendations(
 
     if df.empty:
         errors.append("No valid driver associations available.")
-
         return pd.DataFrame(), DriverRecommendationReport(
             recommendations_generated=0,
             warnings=warnings,
             errors=errors,
         )
 
+    df["absolute_association"] = df["association_value"].abs()
+
+    grouped = (
+        df.groupby("driver_group")
+        .agg(
+            evidence_drivers=("driver_variable", "nunique"),
+            supporting_variables=(
+                "driver_variable",
+                lambda x: " | ".join(sorted(set(map(str, x)))),
+            ),
+            strongest_association=("absolute_association", "max"),
+            average_association=("absolute_association", "mean"),
+            actionability=("actionability", "first"),
+        )
+        .reset_index()
+    )
+
+    grouped["hypothesis_score"] = (
+        grouped["average_association"]
+        * grouped["evidence_drivers"].apply(math.sqrt)
+    )
+
+    grouped = grouped.sort_values(
+        ["hypothesis_score", "strongest_association"],
+        ascending=[False, False],
+    ).reset_index(drop=True)
+
     rows = []
 
-    for _, row in df.iterrows():
+    for _, row in grouped.iterrows():
 
         driver_group = str(row["driver_group"])
-        driver_variable = str(row["driver_variable"])
-        actionability = str(row["actionability"])
-        association_value = float(row["association_value"])
-        direction = str(row["direction"])
 
         hypothesis_entry = HYPOTHESIS_LIBRARY.get(
             driver_group,
             {
                 "review_area": "Further Investigation",
                 "management_hypothesis": (
-                    "This factor shows a statistical association with attrition risk. "
-                    "Additional organizational analysis may be required to determine "
-                    "whether intervention opportunities exist."
+                    "This workforce domain shows a statistical association with attrition risk. "
+                    "Additional organizational analysis may be required to determine whether "
+                    "intervention opportunities exist."
                 ),
             },
         )
 
-        if association_value > 0:
-            observed_pattern = (
-                "Higher values or the highlighted category are associated with "
-                "higher predicted attrition risk."
-            )
-        else:
-            observed_pattern = (
-                "Higher values or the highlighted category are associated with "
-                "lower predicted attrition risk."
-            )
-
         rows.append(
             {
                 "driver_group": driver_group,
-                "supporting_variable": driver_variable,
-                "association_value": association_value,
-                "direction": direction,
-                "actionability": actionability,
+                "evidence_drivers": int(row["evidence_drivers"]),
+                "supporting_variables": row["supporting_variables"],
+                "strongest_association": float(row["strongest_association"]),
+                "average_association": float(row["average_association"]),
+                "hypothesis_score": float(row["hypothesis_score"]),
+                "actionability": row["actionability"],
                 "review_area": hypothesis_entry["review_area"],
-                "observed_pattern": observed_pattern,
                 "management_hypothesis": hypothesis_entry["management_hypothesis"],
             }
         )
 
     output = pd.DataFrame(rows)
-
-    output["absolute_association_value"] = (
-        output["association_value"].abs()
-    )
-
-    output = (
-        output
-        .sort_values(
-            "absolute_association_value",
-            ascending=False,
-        )
-        .drop(columns=["absolute_association_value"])
-        .reset_index(drop=True)
-    )
 
     output["hypothesis_rank"] = range(
         1,
@@ -320,19 +242,21 @@ def build_driver_recommendations(
         [
             "hypothesis_rank",
             "driver_group",
-            "supporting_variable",
-            "association_value",
-            "direction",
+            "evidence_drivers",
+            "supporting_variables",
+            "strongest_association",
+            "average_association",
+            "hypothesis_score",
             "actionability",
             "review_area",
-            "observed_pattern",
             "management_hypothesis",
         ]
     ]
 
     warnings.append(
-        "Management hypotheses are evidence-based investigation areas only. "
-        "They do not establish causality and should not be interpreted as automatic personnel decisions."
+        "Management hypotheses are grouped by workforce domain and based on statistical "
+        "associations only. They do not establish causality and should not be interpreted "
+        "as automatic personnel decisions."
     )
 
     return output, DriverRecommendationReport(
