@@ -803,13 +803,15 @@ else:
     display_cols = [
         "hypothesis_rank",
         "driver_group",
-        "supporting_variable",
-        "association_value",
+        "evidence_drivers",
+        "supporting_variables",
+        "strongest_association",
+        "average_association",
+        "hypothesis_score",
         "actionability",
         "review_area",
-        "observed_pattern",
         "management_hypothesis",
-    ]
+    ]    
 
     st.dataframe(
         recommendation_table[display_cols].head(25),
