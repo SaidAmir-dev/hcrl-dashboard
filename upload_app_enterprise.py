@@ -11,6 +11,9 @@ from hcrl_attrition_driver_engine import build_attrition_driver_table
 from hcrl_task_intelligence_engine import attach_task_intelligence
 from hcrl_narrative_engine import build_workforce_narratives
 from hcrl_risk_engine import estimate_attrition_risk
+from hcrl_workforce_opportunity_engine import (
+    build_workforce_opportunity_table,
+)
 from hcrl_segmentation_engine import build_segmentation_table
 from hcrl_cost_engine import estimate_expected_attrition_cost
 from hcrl_ai_readiness_engine import attach_ai_readiness
