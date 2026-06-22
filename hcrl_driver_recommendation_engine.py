@@ -194,10 +194,25 @@ def build_driver_recommendations(
         * grouped["evidence_drivers"].apply(math.sqrt)
     )
 
+    grouped["actionability_priority"] = grouped["actionability"].map(
+        {
+            "Actionable": 1,
+            "Descriptive": 0,
+        }
+    ).fillna(0)
+
     grouped = grouped.sort_values(
-        ["hypothesis_score", "strongest_association"],
-        ascending=[False, False],
+        [
+            "actionability_priority",
+            "hypothesis_score",
+            "strongest_association",
+        ],
+        ascending=[False, False, False],
     ).reset_index(drop=True)
+
+    grouped = grouped.drop(
+        columns=["actionability_priority"]
+    )
 
     rows = []
 
@@ -255,8 +270,8 @@ def build_driver_recommendations(
 
     warnings.append(
         "Management hypotheses are grouped by workforce domain and based on statistical "
-        "associations only. They do not establish causality and should not be interpreted "
-        "as automatic personnel decisions."
+        "associations only. Actionable domains are prioritized before descriptive domains. "
+        "They do not establish causality and should not be interpreted as automatic personnel decisions."
     )
 
     return output, DriverRecommendationReport(
