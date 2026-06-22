@@ -655,56 +655,7 @@ else:
         mime="text/csv",
     )
 
-# =====================================================
-# 17. MANAGEMENT HYPOTHESIS ENGINE
-# =====================================================
 
-st.header("17. Management Hypothesis Engine")
-
-recommendation_table, recommendation_report = build_driver_recommendations(
-    driver_table
-)
-
-if recommendation_report.errors:
-    st.error("Management hypothesis errors:")
-    for error in recommendation_report.errors:
-        st.write(error)
-
-else:
-    st.metric(
-        "Hypotheses Generated",
-        f"{recommendation_report.recommendations_generated:,}",
-    )
-
-    if recommendation_report.warnings:
-        st.warning("Management hypothesis warnings:")
-        for warning in recommendation_report.warnings:
-            st.write(f"- {warning}")
-
-    display_cols = [
-        "hypothesis_rank",
-        "driver_group",
-        "evidence_drivers",
-        "supporting_variables",
-        "strongest_association",
-        "average_association",
-        "hypothesis_score",
-        "actionability",
-        "review_area",
-        "management_hypothesis",
-    ]    
-
-    st.dataframe(
-        recommendation_table[display_cols].head(25),
-        use_container_width=True,
-    )
-
-    st.download_button(
-        label="Download Management Hypothesis Table",
-        data=recommendation_table.to_csv(index=False).encode("utf-8"),
-        file_name="hcrl_management_hypotheses.csv",
-        mime="text/csv",
-    )
 
 # =====================================================
 # 18. WORKFORCE LEVERAGE INTELLIGENCE
@@ -741,44 +692,7 @@ else:
         mime="text/csv",
     )
 
-# =====================================================
-# 19. WORKFORCE OPPORTUNITY INTELLIGENCE
-# =====================================================
 
-st.header("19. Workforce Opportunity Intelligence")
-
-opportunity_table, opportunity_report = build_workforce_opportunity_table(
-    priority_table=priority_table,
-    leverage_table=leverage_table,
-)
-
-if opportunity_report.errors:
-    st.error("Opportunity engine errors:")
-    for error in opportunity_report.errors:
-        st.write(error)
-
-else:
-    st.metric(
-        "Opportunities Identified",
-        opportunity_report.opportunities_identified,
-    )
-
-    if opportunity_report.warnings:
-        st.warning("Opportunity warnings:")
-        for warning in opportunity_report.warnings:
-            st.write(f"- {warning}")
-
-    st.dataframe(
-        opportunity_table,
-        use_container_width=True,
-    )
-
-    st.download_button(
-        label="Download Workforce Opportunity Table",
-        data=opportunity_table.to_csv(index=False).encode("utf-8"),
-        file_name="hcrl_workforce_opportunity.csv",
-        mime="text/csv",
-    )
 with st.expander("Methodology and Limitations"):
     st.write(
         """
