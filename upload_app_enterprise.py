@@ -740,6 +740,45 @@ else:
         file_name="hcrl_workforce_leverage.csv",
         mime="text/csv",
     )
+
+# =====================================================
+# 19. WORKFORCE OPPORTUNITY INTELLIGENCE
+# =====================================================
+
+st.header("19. Workforce Opportunity Intelligence")
+
+opportunity_table, opportunity_report = build_workforce_opportunity_table(
+    priority_table=priority_table,
+    leverage_table=leverage_table,
+)
+
+if opportunity_report.errors:
+    st.error("Opportunity engine errors:")
+    for error in opportunity_report.errors:
+        st.write(error)
+
+else:
+    st.metric(
+        "Opportunities Identified",
+        opportunity_report.opportunities_identified,
+    )
+
+    if opportunity_report.warnings:
+        st.warning("Opportunity warnings:")
+        for warning in opportunity_report.warnings:
+            st.write(f"- {warning}")
+
+    st.dataframe(
+        opportunity_table,
+        use_container_width=True,
+    )
+
+    st.download_button(
+        label="Download Workforce Opportunity Table",
+        data=opportunity_table.to_csv(index=False).encode("utf-8"),
+        file_name="hcrl_workforce_opportunity.csv",
+        mime="text/csv",
+    )
 with st.expander("Methodology and Limitations"):
     st.write(
         """
