@@ -8,9 +8,7 @@ from hcrl_onet_mapper import map_to_onet
 
 from hcrl_driver_recommendation_engine import build_driver_recommendations
 from hcrl_attrition_driver_engine import build_attrition_driver_table
-from hcrl_scenario_simulation_engine import (
-    build_scenario_simulation_table,
-)
+
 from hcrl_task_intelligence_engine import attach_task_intelligence
 from hcrl_narrative_engine import build_workforce_narratives
 from hcrl_intervention_intelligence_engine import (
@@ -791,106 +789,176 @@ else:
     )
 
 
-# =====================================================
-# 17. WORKFORCE SCENARIO SIMULATION
-# =====================================================
+# ==========================================================
+# 17. WORKFORCE ACTION INTELLIGENCE
+# ==========================================================
 
-st.header("17. Workforce Scenario Simulation")
+st.header("17. Workforce Action Intelligence")
 
-st.write(
-    "Test how modeled attrition exposure could change under hypothetical workforce improvement scenarios."
-)
+if (
+    "workforce_opportunity_df" in locals()
+    and workforce_opportunity_df is not None
+    and len(workforce_opportunity_df) > 0
+):
 
-scenario_name = st.selectbox(
-    "Choose scenario",
-    [
-        "Career Progression Improvement",
-        "Compensation Improvement",
-        "Manager Stability Improvement",
-        "Work Environment Improvement",
-        "Workload Reduction",
-        "Training and Development Improvement",
-        "Travel / Commute Burden Reduction",
-    ],
-)
+    action_df = workforce_opportunity_df.copy()
 
-scenario_intensity_pct = st.slider(
-    "Scenario intensity (%)",
-    min_value=5,
-    max_value=30,
-    value=10,
-    step=5,
-)
-
-scenario_table, scenario_report = build_scenario_simulation_table(
-    priority_table=priority_table,
-    leverage_table=leverage_table,
-    scenario_name=scenario_name,
-    scenario_intensity_pct=scenario_intensity_pct,
-)
-
-if scenario_report.errors:
-    st.error("Scenario simulation errors:")
-    for error in scenario_report.errors:
-        st.write(error)
-
-else:
-    current_exposure = float(
-        scenario_table["baseline_exposure"].iloc[0]
+    action_df = action_df.sort_values(
+        "opportunity_score",
+        ascending=False
     )
 
-    scenario_exposure = float(
-        scenario_table["scenario_exposure"].iloc[0]
+    st.metric(
+        "Priority Action Areas",
+        len(action_df)
     )
 
-    exposure_difference = float(
-        scenario_table["exposure_difference"].iloc[0]
+    st.warning(
+        """
+        Workforce Action Intelligence translates workforce evidence into
+        management review priorities.
+
+        It does not estimate ROI, savings, causality,
+        or prescribe mandatory actions.
+        """
     )
 
-    c1, c2, c3 = st.columns(3)
+    review_map = {
+        "Career Progression":
+            "Promotion Pathway Review",
 
-    with c1:
-        st.metric(
-            "Current Modeled Exposure",
-            f"${current_exposure:,.0f}",
-        )
+        "Compensation":
+            "Compensation Structure Review",
 
-    with c2:
-        st.metric(
-            "Scenario Modeled Exposure",
-            f"${scenario_exposure:,.0f}",
-        )
+        "Work Environment":
+            "Work Environment Review",
 
-    with c3:
-        st.metric(
-            "Modeled Exposure Difference",
-            f"-${exposure_difference:,.0f}",
-        )
+        "Manager Stability":
+            "Manager Effectiveness Review",
 
-    if scenario_report.warnings:
-        st.warning("Scenario simulation warnings:")
-        for warning in scenario_report.warnings:
-            st.write(f"- {warning}")
+        "Training and Development":
+            "Skills Development Review",
 
-    st.subheader("Scenario Result")
+        "Travel / Commute Burden":
+            "Flexibility Review",
+
+        "Workload":
+            "Workload Review",
+
+        "Department":
+            "Department-Level Review",
+
+        "Occupation":
+            "Occupation-Level Review"
+    }
+
+    action_df["recommended_review"] = (
+        action_df["driver_group"]
+        .map(review_map)
+        .fillna("Management Review")
+    )
+
+    action_df["priority_rank"] = (
+        range(1, len(action_df) + 1)
+    )
+
+    display_cols = [
+        "priority_rank",
+        "driver_group",
+        "recommended_review",
+        "estimated_exposure_linked_to_domain",
+        "share_of_leverage",
+        "opportunity_score"
+    ]
+
+    st.subheader(
+        "Evidence-Based Management Priorities"
+    )
 
     st.dataframe(
-        scenario_table,
-        use_container_width=True,
+        action_df[display_cols],
+        use_container_width=True
     )
 
-    st.info(
-        "This simulation uses observed leverage evidence and a user-selected scenario intensity. "
-        "It does not prove causality or guarantee financial savings."
+    # --------------------------------------------------
+    # Executive Summary
+    # --------------------------------------------------
+
+    top_area = action_df.iloc[0]
+
+    st.subheader("Management Recommendation")
+
+    st.success(
+        f"""
+        Highest-priority review area:
+
+        {top_area['driver_group']}
+
+        Recommended review:
+
+        {top_area['recommended_review']}
+
+        Exposure linked to domain:
+
+        ${top_area['estimated_exposure_linked_to_domain']:,.0f}
+
+        Share of leverage evidence:
+
+        {top_area['share_of_leverage']:.1%}
+        """
     )
+
+    # --------------------------------------------------
+    # Detailed Priority Explanations
+    # --------------------------------------------------
+
+    st.subheader("Priority Explanation")
+
+    for _, row in action_df.head(5).iterrows():
+
+        st.markdown(
+            f"""
+### #{int(row['priority_rank'])} {row['driver_group']}
+
+**Recommended Review**
+
+{row['recommended_review']}
+
+**Linked Exposure**
+
+${row['estimated_exposure_linked_to_domain']:,.0f}
+
+**Evidence Share**
+
+{row['share_of_leverage']:.1%}
+
+**Reason**
+
+This workforce domain accounts for
+{row['share_of_leverage']:.1%}
+of observed workforce leverage evidence and is linked
+to approximately
+${row['estimated_exposure_linked_to_domain']:,.0f}
+of modeled workforce exposure.
+"""
+        )
+
+    csv = action_df.to_csv(index=False)
 
     st.download_button(
-        label="Download Scenario Simulation Table",
-        data=scenario_table.to_csv(index=False).encode("utf-8"),
-        file_name="hcrl_scenario_simulation.csv",
-        mime="text/csv",
+        "Download Workforce Action Intelligence",
+        csv,
+        "hcrl_workforce_action_intelligence.csv",
+        "text/csv"
     )
-    
+
+else:
+
+    st.info(
+        "Workforce Opportunity Intelligence required."
+    )
+
+
 with st.expander("Methodology and Limitations"):
     st.write(
         """
