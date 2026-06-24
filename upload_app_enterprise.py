@@ -789,175 +789,132 @@ else:
     )
 
 
-# ==========================================================
+# =====================================================
 # 17. WORKFORCE ACTION INTELLIGENCE
-# ==========================================================
+# =====================================================
 
 st.header("17. Workforce Action Intelligence")
 
 if (
-    "workforce_opportunity_df" in locals()
-    and workforce_opportunity_df is not None
-    and len(workforce_opportunity_df) > 0
+    "intervention_economics_table" in locals()
+    and intervention_economics_table is not None
+    and not intervention_economics_table.empty
 ):
 
-    action_df = workforce_opportunity_df.copy()
+    action_df = intervention_economics_table.copy()
 
-    action_df = action_df.sort_values(
-        "opportunity_score",
-        ascending=False
-    )
-
-    st.metric(
-        "Priority Action Areas",
-        len(action_df)
-    )
-
-    st.warning(
-        """
-        Workforce Action Intelligence translates workforce evidence into
-        management review priorities.
-
-        It does not estimate ROI, savings, causality,
-        or prescribe mandatory actions.
-        """
-    )
-
-    review_map = {
-        "Career Progression":
-            "Promotion Pathway Review",
-
-        "Compensation":
-            "Compensation Structure Review",
-
-        "Work Environment":
-            "Work Environment Review",
-
-        "Manager Stability":
-            "Manager Effectiveness Review",
-
-        "Training and Development":
-            "Skills Development Review",
-
-        "Travel / Commute Burden":
-            "Flexibility Review",
-
-        "Workload":
-            "Workload Review",
-
-        "Department":
-            "Department-Level Review",
-
-        "Occupation":
-            "Occupation-Level Review"
-    }
-
-    action_df["recommended_review"] = (
-        action_df["driver_group"]
-        .map(review_map)
-        .fillna("Management Review")
-    )
-
-    action_df["priority_rank"] = (
-        range(1, len(action_df) + 1)
-    )
-
-    display_cols = [
-        "priority_rank",
+    required_cols = [
         "driver_group",
-        "recommended_review",
-        "estimated_exposure_linked_to_domain",
-        "share_of_leverage",
-        "opportunity_score"
+        "intervention_area",
+        "actionability",
+        "evidence_drivers",
+        "supporting_variables",
+        "intervention_evidence_score",
+        "exposure_linked_to_intervention_area",
+        "economic_attention_score",
+        "potential_interventions",
     ]
 
-    st.subheader(
-        "Evidence-Based Management Priorities"
-    )
+    missing_cols = [
+        col for col in required_cols
+        if col not in action_df.columns
+    ]
 
-    st.dataframe(
-        action_df[display_cols],
-        use_container_width=True
-    )
+    if missing_cols:
+        st.error(f"Missing columns for Action Intelligence: {missing_cols}")
 
-    # --------------------------------------------------
-    # Executive Summary
-    # --------------------------------------------------
+    else:
+        action_df = action_df.sort_values(
+            "economic_attention_score",
+            ascending=False,
+        ).reset_index(drop=True)
 
-    top_area = action_df.iloc[0]
-
-    st.subheader("Management Recommendation")
-
-    st.success(
-        f"""
-        Highest-priority review area:
-
-        {top_area['driver_group']}
-
-        Recommended review:
-
-        {top_area['recommended_review']}
-
-        Exposure linked to domain:
-
-        ${top_area['estimated_exposure_linked_to_domain']:,.0f}
-
-        Share of leverage evidence:
-
-        {top_area['share_of_leverage']:.1%}
-        """
-    )
-
-    # --------------------------------------------------
-    # Detailed Priority Explanations
-    # --------------------------------------------------
-
-    st.subheader("Priority Explanation")
-
-    for _, row in action_df.head(5).iterrows():
-
-        st.markdown(
-            f"""
-### #{int(row['priority_rank'])} {row['driver_group']}
-
-**Recommended Review**
-
-{row['recommended_review']}
-
-**Linked Exposure**
-
-${row['estimated_exposure_linked_to_domain']:,.0f}
-
-**Evidence Share**
-
-{row['share_of_leverage']:.1%}
-
-**Reason**
-
-This workforce domain accounts for
-{row['share_of_leverage']:.1%}
-of observed workforce leverage evidence and is linked
-to approximately
-${row['estimated_exposure_linked_to_domain']:,.0f}
-of modeled workforce exposure.
-"""
+        action_df["action_rank"] = range(
+            1,
+            len(action_df) + 1,
         )
 
-    csv = action_df.to_csv(index=False)
+        st.metric(
+            "Action Areas Identified",
+            len(action_df),
+        )
 
-    st.download_button(
-        "Download Workforce Action Intelligence",
-        csv,
-        "hcrl_workforce_action_intelligence.csv",
-        "text/csv"
-    )
+        st.warning(
+            "Workforce Action Intelligence converts driver evidence and modeled exposure "
+            "into management review priorities. It does not estimate ROI, causal savings, "
+            "or prescribe mandatory actions."
+        )
+
+        st.subheader("Evidence-Based Management Priorities")
+
+        display_cols = [
+            "action_rank",
+            "driver_group",
+            "intervention_area",
+            "actionability",
+            "evidence_drivers",
+            "supporting_variables",
+            "intervention_evidence_score",
+            "exposure_linked_to_intervention_area",
+            "economic_attention_score",
+            "potential_interventions",
+        ]
+
+        st.dataframe(
+            action_df[display_cols],
+            use_container_width=True,
+        )
+
+        top = action_df.iloc[0]
+
+        st.subheader("Top Management Priority")
+
+        st.success(
+            f"""
+            Highest-priority review area: **{top['intervention_area']}**
+
+            Workforce domain: **{top['driver_group']}**
+
+            Modeled exposure linked to this area: **${top['exposure_linked_to_intervention_area']:,.0f}**
+
+            Supporting variables: **{top['supporting_variables']}**
+
+            Potential interventions: **{top['potential_interventions']}**
+            """
+        )
+
+        st.subheader("Priority Explanation")
+
+        for _, row in action_df.head(5).iterrows():
+            st.markdown(
+                f"""
+### #{int(row['action_rank'])} {row['intervention_area']}
+
+**Domain:** {row['driver_group']}
+
+**Linked modeled exposure:** ${row['exposure_linked_to_intervention_area']:,.0f}
+
+**Evidence drivers:** {int(row['evidence_drivers'])}
+
+**Supporting variables:** {row['supporting_variables']}
+
+**Potential management review areas:** {row['potential_interventions']}
+
+This is an evidence-aligned review priority, not a causal recommendation or guaranteed savings estimate.
+"""
+            )
+
+        st.download_button(
+            label="Download Workforce Action Intelligence",
+            data=action_df.to_csv(index=False).encode("utf-8"),
+            file_name="hcrl_workforce_action_intelligence.csv",
+            mime="text/csv",
+        )
 
 else:
-
     st.info(
-        "Workforce Opportunity Intelligence required."
+        "Intervention Economics must run before Workforce Action Intelligence."
     )
-
 
 with st.expander("Methodology and Limitations"):
     st.write(
