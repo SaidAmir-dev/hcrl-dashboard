@@ -10,6 +10,13 @@ from hcrl_driver_recommendation_engine import build_driver_recommendations
 from hcrl_attrition_driver_engine import build_attrition_driver_table
 from hcrl_task_intelligence_engine import attach_task_intelligence
 from hcrl_narrative_engine import build_workforce_narratives
+from hcrl_intervention_intelligence_engine import (
+    build_intervention_intelligence_table,
+)
+
+from hcrl_intervention_economics_engine import (
+    build_intervention_economics_table,
+)
 from hcrl_risk_engine import estimate_attrition_risk
 from hcrl_workforce_opportunity_engine import (
     build_workforce_opportunity_table,
@@ -339,10 +346,10 @@ else:
     )
 
 # =====================================================
-# 11. EXECUTIVE REPORT
+# 9. EXECUTIVE REPORT
 # =====================================================
 
-st.header("11. Executive Management Report")
+st.header("9. Executive Management Report")
 
 executive_table, executive_report = (
     build_executive_focus_table(
@@ -399,7 +406,7 @@ else:
         mime="text/csv",
     )
 
-st.header("13. Decision Intelligence")
+st.header("10. Decision Intelligence")
 
 segment_options = [
     col for col in [
@@ -441,7 +448,7 @@ else:
         )
 
 
-st.header("14. Download Full HCRL Output")
+st.header("11. Download Full HCRL Output")
 
 st.download_button(
     label="Download Full HCRL Analyzed Dataset",
@@ -451,10 +458,10 @@ st.download_button(
 )
 
 # =====================================================
-# 15. WORKFORCE SEGMENTATION INTELLIGENCE
+# 12. WORKFORCE SEGMENTATION INTELLIGENCE
 # =====================================================
 
-st.header("15. Workforce Segmentation Intelligence")
+st.header("12. Workforce Segmentation Intelligence")
 
 segmentation_options = [
     col for col in [
@@ -563,10 +570,10 @@ else:
         )
 
 # =====================================================
-# 16. ATTRITION DRIVER INTELLIGENCE
+# 13. ATTRITION DRIVER INTELLIGENCE
 # =====================================================
 
-st.header("16. Attrition Driver Intelligence")
+st.header("13. Attrition Driver Intelligence")
 
 driver_table, driver_report = build_attrition_driver_table(df)
 
@@ -655,13 +662,101 @@ else:
         mime="text/csv",
     )
 
+# =====================================================
+# 14. INTERVENTION INTELLIGENCE
+# =====================================================
+
+st.header("14. Intervention Intelligence")
+
+intervention_table, intervention_report = build_intervention_intelligence_table(
+    driver_table=driver_table,
+)
+
+if intervention_report.errors:
+    st.error("Intervention intelligence errors:")
+    for error in intervention_report.errors:
+        st.write(error)
+
+else:
+    st.metric(
+        "Intervention Areas Identified",
+        intervention_report.intervention_areas_identified,
+    )
+
+    if intervention_report.warnings:
+        st.warning("Intervention intelligence warnings:")
+        for warning in intervention_report.warnings:
+            st.write(f"- {warning}")
+
+    st.subheader("Evidence-Aligned Intervention Areas")
+
+    st.dataframe(
+        intervention_table,
+        use_container_width=True,
+    )
+
+    st.download_button(
+        label="Download Intervention Intelligence Table",
+        data=intervention_table.to_csv(index=False).encode("utf-8"),
+        file_name="hcrl_intervention_intelligence.csv",
+        mime="text/csv",
+    )
 
 
 # =====================================================
-# 18. WORKFORCE LEVERAGE INTELLIGENCE
+# 15. INTERVENTION ECONOMICS
 # =====================================================
 
-st.header("18. Workforce Leverage Intelligence")
+st.header("15. Intervention Economics")
+
+intervention_economics_table, intervention_economics_report = (
+    build_intervention_economics_table(
+        intervention_table=intervention_table,
+        priority_table=priority_table,
+    )
+)
+
+if intervention_economics_report.errors:
+    st.error("Intervention economics errors:")
+    for error in intervention_economics_report.errors:
+        st.write(error)
+
+else:
+    st.metric(
+        "Intervention Areas Analyzed",
+        intervention_economics_report.intervention_areas_analyzed,
+    )
+
+    st.metric(
+        "Total Modeled Exposure",
+        f"${intervention_economics_report.total_modeled_exposure:,.0f}",
+    )
+
+    if intervention_economics_report.warnings:
+        st.warning("Intervention economics warnings:")
+        for warning in intervention_economics_report.warnings:
+            st.write(f"- {warning}")
+
+    st.subheader("Intervention-Linked Economic Exposure")
+
+    st.dataframe(
+        intervention_economics_table,
+        use_container_width=True,
+    )
+
+    st.download_button(
+        label="Download Intervention Economics Table",
+        data=intervention_economics_table.to_csv(index=False).encode("utf-8"),
+        file_name="hcrl_intervention_economics.csv",
+        mime="text/csv",
+    )
+
+
+# =====================================================
+# 16. WORKFORCE LEVERAGE INTELLIGENCE
+# =====================================================
+
+st.header("16. Workforce Leverage Intelligence")
 
 leverage_table, leverage_report = build_workforce_leverage_table(
     driver_table
