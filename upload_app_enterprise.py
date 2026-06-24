@@ -791,6 +791,106 @@ else:
     )
 
 
+# =====================================================
+# 17. WORKFORCE SCENARIO SIMULATION
+# =====================================================
+
+st.header("17. Workforce Scenario Simulation")
+
+st.write(
+    "Test how modeled attrition exposure could change under hypothetical workforce improvement scenarios."
+)
+
+scenario_name = st.selectbox(
+    "Choose scenario",
+    [
+        "Career Progression Improvement",
+        "Compensation Improvement",
+        "Manager Stability Improvement",
+        "Work Environment Improvement",
+        "Workload Reduction",
+        "Training and Development Improvement",
+        "Travel / Commute Burden Reduction",
+    ],
+)
+
+scenario_intensity_pct = st.slider(
+    "Scenario intensity (%)",
+    min_value=5,
+    max_value=30,
+    value=10,
+    step=5,
+)
+
+scenario_table, scenario_report = build_scenario_simulation_table(
+    priority_table=priority_table,
+    leverage_table=leverage_table,
+    scenario_name=scenario_name,
+    scenario_intensity_pct=scenario_intensity_pct,
+)
+
+if scenario_report.errors:
+    st.error("Scenario simulation errors:")
+    for error in scenario_report.errors:
+        st.write(error)
+
+else:
+    current_exposure = float(
+        scenario_table["baseline_exposure"].iloc[0]
+    )
+
+    scenario_exposure = float(
+        scenario_table["scenario_exposure"].iloc[0]
+    )
+
+    exposure_difference = float(
+        scenario_table["exposure_difference"].iloc[0]
+    )
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+        st.metric(
+            "Current Modeled Exposure",
+            f"${current_exposure:,.0f}",
+        )
+
+    with c2:
+        st.metric(
+            "Scenario Modeled Exposure",
+            f"${scenario_exposure:,.0f}",
+        )
+
+    with c3:
+        st.metric(
+            "Modeled Exposure Difference",
+            f"-${exposure_difference:,.0f}",
+        )
+
+    if scenario_report.warnings:
+        st.warning("Scenario simulation warnings:")
+        for warning in scenario_report.warnings:
+            st.write(f"- {warning}")
+
+    st.subheader("Scenario Result")
+
+    st.dataframe(
+        scenario_table,
+        use_container_width=True,
+    )
+
+    st.info(
+        "This simulation uses observed leverage evidence and a user-selected scenario intensity. "
+        "It does not prove causality or guarantee financial savings."
+    )
+
+    st.download_button(
+        label="Download Scenario Simulation Table",
+        data=scenario_table.to_csv(index=False).encode("utf-8"),
+        file_name="hcrl_scenario_simulation.csv",
+        mime="text/csv",
+    )
+    
 with st.expander("Methodology and Limitations"):
     st.write(
         """
