@@ -8,6 +8,9 @@ from hcrl_onet_mapper import map_to_onet
 
 from hcrl_driver_recommendation_engine import build_driver_recommendations
 from hcrl_attrition_driver_engine import build_attrition_driver_table
+from hcrl_scenario_simulation_engine import (
+    build_scenario_simulation_table,
+)
 from hcrl_task_intelligence_engine import attach_task_intelligence
 from hcrl_narrative_engine import build_workforce_narratives
 from hcrl_intervention_intelligence_engine import (
