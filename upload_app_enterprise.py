@@ -824,10 +824,29 @@ if (
         st.error(f"Missing columns for Action Intelligence: {missing_cols}")
 
     else:
-        action_df = action_df.sort_values(
-            "economic_attention_score",
-            ascending=False,
-        ).reset_index(drop=True)
+        action_df["actionability_sort"] = (
+            action_df["actionability"]
+            .map(
+                {
+                    "Actionable": 1,
+                    "Descriptive": 0,
+                }
+            )
+            .fillna(0)
+        )
+
+        action_df = (
+            action_df
+            .sort_values(
+                [
+                    "actionability_sort",
+                    "economic_attention_score",
+                ],
+                ascending=[False, False],
+            )
+            .drop(columns=["actionability_sort"])
+            .reset_index(drop=True)
+        )
 
         action_df["action_rank"] = range(
             1,
@@ -871,16 +890,16 @@ if (
 
         st.success(
             f"""
-            Highest-priority review area: **{top['intervention_area']}**
+Highest-priority review area: **{top['intervention_area']}**
 
-            Workforce domain: **{top['driver_group']}**
+Workforce domain: **{top['driver_group']}**
 
-            Modeled exposure linked to this area: **${top['exposure_linked_to_intervention_area']:,.0f}**
+Modeled exposure linked to this area: **${top['exposure_linked_to_intervention_area']:,.0f}**
 
-            Supporting variables: **{top['supporting_variables']}**
+Supporting variables: **{top['supporting_variables']}**
 
-            Potential interventions: **{top['potential_interventions']}**
-            """
+Potential interventions: **{top['potential_interventions']}**
+"""
         )
 
         st.subheader("Priority Explanation")
