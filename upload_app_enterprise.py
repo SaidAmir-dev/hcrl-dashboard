@@ -803,307 +803,29 @@ if (
     and not intervention_economics_table.empty
 ):
 
-    action_df = intervention_economics_table.copy()
+    action_df, investigation_df, action_report = (
+        build_workforce_action_investigation(
+            workforce_df=df,
+            intervention_economics_table=intervention_economics_table,
+        )
+    )
 
-    required_cols = [
-        "driver_group",
-        "intervention_area",
-        "actionability",
-        "evidence_drivers",
-        "supporting_variables",
-        "intervention_evidence_score",
-        "exposure_linked_to_intervention_area",
-        "economic_attention_score",
-        "potential_interventions",
-    ]
-
-    missing_cols = [
-        col for col in required_cols
-        if col not in action_df.columns
-    ]
-
-    if missing_cols:
-        st.error(f"Missing columns for Workforce Action Intelligence: {missing_cols}")
+    if action_report.errors:
+        st.error("Workforce Action Intelligence errors:")
+        for error in action_report.errors:
+            st.write(f"- {error}")
 
     else:
-        action_df["actionability_sort"] = (
-            action_df["actionability"]
-            .map({"Actionable": 1, "Descriptive": 0})
-            .fillna(0)
+
+        st.metric(
+            "Action Areas Identified",
+            action_report.action_areas_identified,
         )
 
-        action_df = (
-            action_df
-            .sort_values(
-                ["actionability_sort", "economic_attention_score"],
-                ascending=[False, False],
-            )
-            .drop(columns=["actionability_sort"])
-            .reset_index(drop=True)
-        )
-
-        action_df["action_rank"] = range(1, len(action_df) + 1)
-
-        def evidence_strength_label(n_drivers):
-            if n_drivers >= 4:
-                return "Very High"
-            if n_drivers >= 2:
-                return "High"
-            return "Moderate"
-
-        def management_attention_label(rank, actionability):
-            if actionability != "Actionable":
-                return "Contextual Review"
-            if rank <= 2:
-                return "Immediate Management Review"
-            if rank <= 5:
-                return "Near-Term Management Review"
-            return "Planned Review"
-
-        management_questions = {
-            "Career Progression": [
-                "Are employees remaining too long without promotion?",
-                "Are internal mobility paths visible and accessible?",
-                "Are high-performing employees progressing internally?",
-                "Are promotion patterns consistent across departments?",
-            ],
-            "Compensation": [
-                "Is compensation competitive for high-risk roles?",
-                "Are there signs of pay compression across job levels?",
-                "Are salary increases aligned with retention-sensitive roles?",
-                "Are long-term incentives being used effectively?",
-            ],
-            "Work Environment": [
-                "Are low satisfaction scores concentrated in specific teams?",
-                "Do high-risk groups report weaker job involvement?",
-                "Are employee experience issues concentrated by manager or department?",
-                "Are workload, recognition, and team climate being reviewed together?",
-            ],
-            "Manager Stability": [
-                "Do high-risk groups share unstable manager relationships?",
-                "Are manager changes concentrated in exposed workforce areas?",
-                "Do teams with shorter manager tenure show higher modeled risk?",
-                "Should manager continuity be reviewed for critical roles?",
-            ],
-            "Travel / Commute Burden": [
-                "Are commute or travel expectations concentrated in high-risk groups?",
-                "Can flexibility reduce avoidable workforce friction?",
-                "Are location requirements aligned with role needs?",
-                "Do travel-heavy roles show higher modeled attrition risk?",
-            ],
-            "Workload": [
-                "Is overtime concentrated in high-risk roles or departments?",
-                "Are staffing levels aligned with demand?",
-                "Are workload spikes creating retention pressure?",
-                "Should scheduling or capacity planning be reviewed?",
-            ],
-            "Training and Development": [
-                "Are development opportunities reaching exposed workforce groups?",
-                "Are training investments aligned with retention-sensitive roles?",
-                "Do employees in high-risk areas receive enough skill development?",
-                "Are learning pathways connected to career progression?",
-            ],
-            "Department": [
-                "Is workforce exposure concentrated in one department?",
-                "Are department-level practices contributing to risk variation?",
-                "Do departments differ in manager stability, workload, or compensation patterns?",
-                "Should department leaders review local workforce conditions?",
-            ],
-            "Performance": [
-                "Are performance ratings aligned with growth opportunities?",
-                "Do performance processes support retention-sensitive employees?",
-                "Are high-performing employees receiving progression opportunities?",
-                "Should performance and career development be reviewed together?",
-            ],
-            "Occupation": [
-                "Are specific roles carrying disproportionate workforce exposure?",
-                "Are role-level risks linked to labor market pressure?",
-                "Are hiring pipelines strong enough for exposed occupations?",
-                "Should role-specific workforce planning be reviewed?",
-            ],
-            "Employee Experience": [
-                "Are experienced employees showing retention pressure?",
-                "Are tenure patterns linked to career progression issues?",
-                "Are long-tenured employees receiving enough development opportunities?",
-                "Should employee lifecycle patterns be reviewed?",
-            ],
-            "Education": [
-                "Do educational profiles differ across high-risk groups?",
-                "Is education acting as a descriptive workforce signal?",
-                "Should education be reviewed only as context, not as a direct action lever?",
-                "Are skill-development pathways more useful than education categories?",
-            ],
-        }
-
-        suggested_actions = {
-            "Career Progression": [
-                "Primary: Review promotion timelines across departments.",
-                "Secondary: Review internal mobility opportunities before external hiring.",
-                "Supporting: Review career ladders and succession planning.",
-            ],
-            "Compensation": [
-                "Primary: Review compensation competitiveness for exposed roles.",
-                "Secondary: Review pay progression and salary increase patterns.",
-                "Supporting: Review long-term incentives and pay compression.",
-            ],
-            "Work Environment": [
-                "Primary: Review employee experience signals in exposed groups.",
-                "Secondary: Review team climate, recognition, and engagement patterns.",
-                "Supporting: Review whether issues are concentrated by manager or department.",
-            ],
-            "Manager Stability": [
-                "Primary: Review manager continuity in exposed workforce areas.",
-                "Secondary: Review leadership support and span of control.",
-                "Supporting: Review manager coaching and team stability.",
-            ],
-            "Travel / Commute Burden": [
-                "Primary: Review flexibility options for exposed groups.",
-                "Secondary: Review travel burden and commute requirements.",
-                "Supporting: Review location strategy and hybrid-work feasibility.",
-            ],
-            "Workload": [
-                "Primary: Review overtime concentration.",
-                "Secondary: Review staffing, scheduling, and workload balance.",
-                "Supporting: Review capacity planning for exposed teams.",
-            ],
-            "Training and Development": [
-                "Primary: Review training access for exposed workforce groups.",
-                "Secondary: Review skills-development pathways.",
-                "Supporting: Connect training programs to internal mobility.",
-            ],
-            "Department": [
-                "Primary: Review department-level workforce conditions.",
-                "Secondary: Compare local practices across departments.",
-                "Supporting: Review department-specific manager, workload, and compensation patterns.",
-            ],
-            "Performance": [
-                "Primary: Review performance management consistency.",
-                "Secondary: Connect performance outcomes to growth opportunities.",
-                "Supporting: Review whether high performers are receiving advancement opportunities.",
-            ],
-            "Occupation": [
-                "Primary: Review role-specific workforce planning.",
-                "Secondary: Review hiring pipeline strength for exposed occupations.",
-                "Supporting: Review external labor-market pressure and role design.",
-            ],
-            "Employee Experience": [
-                "Primary: Review employee lifecycle patterns.",
-                "Secondary: Review retention pressure among experienced employees.",
-                "Supporting: Review development opportunities for long-tenured employees.",
-            ],
-            "Education": [
-                "Primary: Treat education as contextual evidence.",
-                "Secondary: Review skills-development needs instead of education categories alone.",
-                "Supporting: Avoid using education profile as a direct personnel action trigger.",
-            ],
-        }
-
-        business_risks = {
-            "Career Progression": [
-                "Loss of experienced employees",
-                "Weak internal mobility",
-                "Higher external hiring dependence",
-                "Leadership pipeline weakness",
-            ],
-            "Compensation": [
-                "Retention pressure in competitive roles",
-                "Pay compression concerns",
-                "Higher replacement cost exposure",
-                "Lower perceived reward fairness",
-            ],
-            "Work Environment": [
-                "Lower engagement",
-                "Reduced team stability",
-                "Higher voluntary turnover pressure",
-                "Employee experience deterioration",
-            ],
-            "Manager Stability": [
-                "Leadership continuity risk",
-                "Team disruption",
-                "Lower trust in management",
-                "Higher retention pressure in affected teams",
-            ],
-            "Travel / Commute Burden": [
-                "Avoidable friction for employees",
-                "Reduced flexibility competitiveness",
-                "Retention pressure in location-sensitive roles",
-                "Higher dissatisfaction in travel-heavy work",
-            ],
-            "Workload": [
-                "Burnout risk",
-                "Capacity strain",
-                "Overtime concentration",
-                "Reduced workforce sustainability",
-            ],
-            "Training and Development": [
-                "Skill stagnation",
-                "Lower internal mobility",
-                "Reduced readiness for future work",
-                "Higher disengagement among growth-oriented employees",
-            ],
-            "Department": [
-                "Localized workforce instability",
-                "Inconsistent management practices",
-                "Uneven retention outcomes",
-                "Department-specific operational risk",
-            ],
-            "Performance": [
-                "Misalignment between performance and growth",
-                "Reduced motivation",
-                "Retention pressure among strong performers",
-                "Lower trust in evaluation systems",
-            ],
-            "Occupation": [
-                "Role-level labor supply risk",
-                "Hiring pipeline weakness",
-                "Critical role instability",
-                "Workforce planning gaps",
-            ],
-            "Employee Experience": [
-                "Loss of institutional knowledge",
-                "Declining employee loyalty",
-                "Lifecycle retention gaps",
-                "Higher replacement pressure",
-            ],
-            "Education": [
-                "Skill mismatch risk",
-                "Training need visibility",
-                "Workforce capability gaps",
-                "Misinterpretation if used without context",
-            ],
-        }
-
-        action_df["evidence_strength"] = action_df["evidence_drivers"].apply(
-            evidence_strength_label
-        )
-
-        action_df["management_attention"] = action_df.apply(
-            lambda row: management_attention_label(
-                row["action_rank"],
-                row["actionability"],
-            ),
-            axis=1,
-        )
-
-        action_df["management_questions"] = action_df["driver_group"].apply(
-            lambda x: " | ".join(management_questions.get(x, ["Review this workforce domain with HR leadership."]))
-        )
-
-        action_df["recommended_management_investigations"] = action_df["driver_group"].apply(
-            lambda x: " | ".join(suggested_actions.get(x, ["Review this workforce domain before making decisions."]))
-        )
-
-        action_df["business_risks_if_ignored"] = action_df["driver_group"].apply(
-            lambda x: " | ".join(business_risks.get(x, ["Potential workforce risk may remain unexplained."]))
-        )
-
-        st.metric("Action Areas Identified", len(action_df))
-
-        st.warning(
-            "Workforce Action Intelligence converts driver evidence and modeled exposure "
-            "into management investigation priorities. It does not estimate ROI, causal savings, "
-            "or prescribe mandatory actions."
-        )
+        if action_report.warnings:
+            st.warning("Workforce Action Intelligence warnings:")
+            for warning in action_report.warnings:
+                st.write(f"- {warning}")
 
         top = action_df.iloc[0]
 
@@ -1112,7 +834,10 @@ if (
         c1, c2, c3, c4 = st.columns(4)
 
         with c1:
-            st.metric("Highest Priority", top["driver_group"])
+            st.metric(
+                "Highest Priority",
+                top["driver_group"],
+            )
 
         with c2:
             st.metric(
@@ -1121,10 +846,16 @@ if (
             )
 
         with c3:
-            st.metric("Evidence Strength", top["evidence_strength"])
+            st.metric(
+                "Evidence Strength",
+                top["evidence_strength"],
+            )
 
         with c4:
-            st.metric("Management Attention", top["management_attention"])
+            st.metric(
+                "Management Attention",
+                top["management_attention"],
+            )
 
         st.subheader("Executive Priority Dashboard")
 
@@ -1146,73 +877,113 @@ if (
             use_container_width=True,
         )
 
-        st.subheader("Top Management Priority")
+        selected_priority = st.selectbox(
+            "Choose priority area for investigation drill-down",
+            action_df["driver_group"].tolist(),
+        )
+
+        selected_action = action_df[
+            action_df["driver_group"] == selected_priority
+        ].iloc[0]
+
+        st.subheader("Selected Priority Briefing")
 
         st.success(
             f"""
-            Highest-priority workforce domain: **{top['driver_group']}**
+            Workforce domain: **{selected_action['driver_group']}**
 
-            Recommended investigation area: **{top['intervention_area']}**
+            Recommended investigation area: **{selected_action['intervention_area']}**
 
-            Management attention: **{top['management_attention']}**
+            Management attention: **{selected_action['management_attention']}**
 
-            Evidence strength: **{top['evidence_strength']}**
+            Evidence strength: **{selected_action['evidence_strength']}**
 
-            Modeled exposure linked to this area: **${top['exposure_linked_to_intervention_area']:,.0f}**
+            Modeled exposure linked to this area: **${selected_action['exposure_linked_to_intervention_area']:,.0f}**
 
-            Supporting variables: **{top['supporting_variables']}**
+            Supporting variables: **{selected_action['supporting_variables']}**
             """
         )
 
-        st.subheader("Priority Briefings")
+        st.markdown("### What management should investigate")
 
-        for _, row in action_df.head(5).iterrows():
-            questions = management_questions.get(row["driver_group"], [])
-            actions = suggested_actions.get(row["driver_group"], [])
-            risks = business_risks.get(row["driver_group"], [])
+        for question in str(selected_action["management_questions"]).split(" | "):
+            st.write(f"- {question}")
 
-            st.markdown(
-                f"""
-## Priority #{int(row['action_rank'])} — {row['driver_group']}
+        st.markdown("### Recommended management investigations")
 
-### Why this appeared
+        for investigation in str(
+            selected_action["recommended_management_investigations"]
+        ).split(" | "):
+            st.write(f"- {investigation}")
 
-{row['driver_group']} appears as a management priority because it is supported by **{int(row['evidence_drivers'])} evidence driver(s)** and is linked to approximately **${row['exposure_linked_to_intervention_area']:,.0f}** of modeled workforce exposure.
+        st.markdown("### Potential business risks if ignored")
 
-**Evidence strength:** {row['evidence_strength']}
+        for risk in str(selected_action["business_risks_if_ignored"]).split(" | "):
+            st.write(f"- {risk}")
 
-**Management attention:** {row['management_attention']}
+        if not investigation_df.empty:
 
-**Supporting variables:** {row['supporting_variables']}
+            selected_investigation = investigation_df[
+                investigation_df["driver_group"] == selected_priority
+            ].copy()
 
-### What management should investigate
-"""
-            )
+            st.subheader("Where Management Should Start Looking")
 
-            for q in questions:
-                st.write(f"- {q}")
+            if selected_investigation.empty:
+                st.info(
+                    "No segment-level investigation rows available for this priority."
+                )
 
-            st.markdown("### Recommended management investigations")
+            else:
+                available_dimensions = selected_investigation[
+                    "dimension"
+                ].dropna().unique().tolist()
 
-            for a in actions:
-                st.write(f"- {a}")
+                for dimension in available_dimensions:
 
-            st.markdown("### Potential business risks if ignored")
+                    dimension_table = selected_investigation[
+                        selected_investigation["dimension"] == dimension
+                    ].copy()
 
-            for r in risks:
-                st.write(f"- {r}")
+                    st.markdown(f"### Exposure Concentration by {dimension}")
 
-            st.info(
-                "This is an evidence-aligned management briefing. "
-                "It is not a causal recommendation, ROI estimate, or guaranteed savings forecast."
-            )
+                    display_cols = [
+                        "segment",
+                        "employees",
+                        "avg_predicted_attrition_probability",
+                        "total_segment_exposure",
+                        "share_of_company_exposure",
+                        "allocated_exposure_linked_to_priority",
+                    ]
+
+                    st.dataframe(
+                        dimension_table[display_cols],
+                        use_container_width=True,
+                    )
+
+                    top_segment = dimension_table.iloc[0]
+
+                    st.write(
+                        f"Highest-exposure {dimension.lower()}: "
+                        f"**{top_segment['segment']}**, with approximately "
+                        f"**${top_segment['allocated_exposure_linked_to_priority']:,.0f}** "
+                        f"of allocated exposure linked to this priority area."
+                    )
 
         st.download_button(
-            label="Download Workforce Action Intelligence",
+            label="Download Workforce Action Priorities",
             data=action_df.to_csv(index=False).encode("utf-8"),
-            file_name="hcrl_workforce_action_intelligence.csv",
+            file_name="hcrl_workforce_action_priorities.csv",
             mime="text/csv",
         )
+
+        if not investigation_df.empty:
+            st.download_button(
+                label="Download Workforce Investigation Drilldown",
+                data=investigation_df.to_csv(index=False).encode("utf-8"),
+                file_name="hcrl_workforce_investigation_drilldown.csv",
+                mime="text/csv",
+            )
 
 else:
     st.info("Intervention Economics must run before Workforce Action Intelligence.")
