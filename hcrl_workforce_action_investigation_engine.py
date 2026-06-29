@@ -2,8 +2,8 @@
 HCRL Workforce Action Investigation Engine
 
 Purpose:
-Convert intervention economics into executive action priorities and identify
-where inside the company management should begin investigation.
+Turn modeled workforce exposure + driver evidence into executive investigation
+priorities and company-specific drilldowns.
 
 No causal claims.
 No ROI estimates.
@@ -33,10 +33,22 @@ ACTIONABLE_SORT = {
 }
 
 
-MANAGEMENT_QUESTIONS = {
+CORE_DIMENSIONS = {
+    "Department": ["department", "Department"],
+    "Job Role": ["job_title", "JobRole", "matched_onet_title"],
+    "Job Level": ["JobLevel", "job_level", "level"],
+    "Location": ["location", "Location", "city", "region", "country"],
+    "Manager": ["manager", "Manager", "manager_id", "ManagerID", "manager_name"],
+    "Business Unit": ["business_unit", "BusinessUnit", "division", "Division"],
+    "Team": ["team", "Team"],
+    "Cost Center": ["cost_center", "CostCenter"],
+}
+
+
+MANAGEMENT_QUESTIONS: Dict[str, List[str]] = {
     "Career Progression": [
-        "Are employees remaining too long without promotion?",
-        "Are promotion patterns consistent across departments?",
+        "Are promotion timelines consistent across departments, roles, and job levels?",
+        "Are employees remaining too long in the same role before advancement?",
         "Are internal mobility paths visible and accessible?",
         "Are high-performing employees progressing internally?",
     ],
@@ -48,9 +60,9 @@ MANAGEMENT_QUESTIONS = {
     ],
     "Work Environment": [
         "Are employee experience issues concentrated by manager, department, or role?",
-        "Do exposed groups report weaker job involvement?",
-        "Are satisfaction-related signals concentrated in specific teams?",
+        "Do exposed groups report weaker job involvement or satisfaction?",
         "Are workload, recognition, and team climate being reviewed together?",
+        "Are low experience signals concentrated in specific teams?",
     ],
     "Manager Stability": [
         "Are manager relationship issues concentrated in exposed workforce areas?",
@@ -78,13 +90,13 @@ MANAGEMENT_QUESTIONS = {
     ],
     "Department": [
         "Is exposure concentrated in specific departments?",
-        "Are department-level practices contributing to risk variation?",
         "Do departments differ in manager stability, workload, or compensation patterns?",
+        "Are department-level practices contributing to risk variation?",
         "Should department leaders review local workforce conditions?",
     ],
     "Occupation": [
         "Are specific roles carrying disproportionate workforce exposure?",
-        "Are role-level risks linked to labor market pressure?",
+        "Are role-level risks linked to labor-market pressure?",
         "Are hiring pipelines strong enough for exposed occupations?",
         "Should role-specific workforce planning be reviewed?",
     ],
@@ -98,7 +110,7 @@ MANAGEMENT_QUESTIONS = {
         "Is education acting as a contextual workforce signal?",
         "Are skills-development pathways more useful than education categories?",
         "Do educational profiles differ across exposed groups?",
-        "Should education be reviewed only as context, not as a direct action lever?",
+        "Should education be reviewed only as context?",
     ],
     "Performance": [
         "Are performance ratings aligned with growth opportunities?",
@@ -106,155 +118,6 @@ MANAGEMENT_QUESTIONS = {
         "Are high-performing employees receiving progression opportunities?",
         "Should performance and career development be reviewed together?",
     ],
-}
-
-
-MANAGEMENT_INVESTIGATIONS = {
-    "Career Progression": [
-        "Primary: Review promotion timelines across departments.",
-        "Secondary: Review internal mobility opportunities before external hiring.",
-        "Supporting: Review career ladders and succession planning.",
-    ],
-    "Compensation": [
-        "Primary: Review compensation competitiveness for exposed roles.",
-        "Secondary: Review pay progression and salary increase patterns.",
-        "Supporting: Review long-term incentives and pay compression.",
-    ],
-    "Work Environment": [
-        "Primary: Review employee experience signals in exposed groups.",
-        "Secondary: Review team climate, recognition, and engagement patterns.",
-        "Supporting: Review whether issues are concentrated by manager, role, or department.",
-    ],
-    "Manager Stability": [
-        "Primary: Review manager continuity in exposed workforce areas.",
-        "Secondary: Review leadership support and span of control.",
-        "Supporting: Review manager coaching and team stability.",
-    ],
-    "Workload": [
-        "Primary: Review overtime concentration.",
-        "Secondary: Review staffing, scheduling, and workload balance.",
-        "Supporting: Review capacity planning for exposed teams.",
-    ],
-    "Travel / Commute Burden": [
-        "Primary: Review flexibility options for exposed groups.",
-        "Secondary: Review travel burden and commute requirements.",
-        "Supporting: Review location strategy and hybrid-work feasibility.",
-    ],
-    "Training and Development": [
-        "Primary: Review training access for exposed workforce groups.",
-        "Secondary: Review skills-development pathways.",
-        "Supporting: Connect training programs to internal mobility.",
-    ],
-    "Department": [
-        "Primary: Review department-level workforce conditions.",
-        "Secondary: Compare local practices across departments.",
-        "Supporting: Review department-specific manager, workload, and compensation patterns.",
-    ],
-    "Occupation": [
-        "Primary: Review role-specific workforce planning.",
-        "Secondary: Review hiring pipeline strength for exposed occupations.",
-        "Supporting: Review external labor-market pressure and role design.",
-    ],
-    "Employee Experience": [
-        "Primary: Review employee lifecycle patterns.",
-        "Secondary: Review retention pressure among experienced employees.",
-        "Supporting: Review development opportunities for long-tenured employees.",
-    ],
-    "Education": [
-        "Primary: Treat education as contextual evidence.",
-        "Secondary: Review skills-development needs instead of education categories alone.",
-        "Supporting: Avoid using education profile as a direct personnel action trigger.",
-    ],
-    "Performance": [
-        "Primary: Review performance management consistency.",
-        "Secondary: Connect performance outcomes to growth opportunities.",
-        "Supporting: Review whether high performers receive advancement opportunities.",
-    ],
-}
-
-
-BUSINESS_RISKS = {
-    "Career Progression": [
-        "Loss of experienced employees",
-        "Weak internal mobility",
-        "Higher external hiring dependence",
-        "Leadership pipeline weakness",
-    ],
-    "Compensation": [
-        "Retention pressure in competitive roles",
-        "Pay compression concerns",
-        "Higher replacement cost exposure",
-        "Lower perceived reward fairness",
-    ],
-    "Work Environment": [
-        "Lower engagement",
-        "Reduced team stability",
-        "Higher voluntary turnover pressure",
-        "Employee experience deterioration",
-    ],
-    "Manager Stability": [
-        "Leadership continuity risk",
-        "Team disruption",
-        "Lower trust in management",
-        "Higher retention pressure in affected teams",
-    ],
-    "Workload": [
-        "Burnout risk",
-        "Capacity strain",
-        "Overtime concentration",
-        "Reduced workforce sustainability",
-    ],
-    "Travel / Commute Burden": [
-        "Avoidable employee friction",
-        "Reduced flexibility competitiveness",
-        "Retention pressure in location-sensitive roles",
-        "Higher dissatisfaction in travel-heavy work",
-    ],
-    "Training and Development": [
-        "Skill stagnation",
-        "Lower internal mobility",
-        "Reduced readiness for future work",
-        "Higher disengagement among growth-oriented employees",
-    ],
-    "Department": [
-        "Localized workforce instability",
-        "Inconsistent management practices",
-        "Uneven retention outcomes",
-        "Department-specific operational risk",
-    ],
-    "Occupation": [
-        "Role-level labor supply risk",
-        "Hiring pipeline weakness",
-        "Critical role instability",
-        "Workforce planning gaps",
-    ],
-    "Employee Experience": [
-        "Loss of institutional knowledge",
-        "Declining employee loyalty",
-        "Lifecycle retention gaps",
-        "Higher replacement pressure",
-    ],
-    "Education": [
-        "Skill mismatch risk",
-        "Training need visibility",
-        "Workforce capability gaps",
-        "Misinterpretation if used without context",
-    ],
-    "Performance": [
-        "Misalignment between performance and growth",
-        "Reduced motivation",
-        "Retention pressure among strong performers",
-        "Lower trust in evaluation systems",
-    ],
-}
-
-
-DIMENSION_CANDIDATES = {
-    "Department": ["department", "Department"],
-    "Job Role": ["job_title", "JobRole", "matched_onet_title"],
-    "Location": ["location", "Location"],
-    "Job Level": ["JobLevel", "job_level", "level"],
-    "Manager": ["manager", "Manager", "manager_id", "ManagerID", "manager_name"],
 }
 
 
@@ -293,12 +156,14 @@ def _build_action_table(
 
     df = intervention_economics_table.copy()
 
-    for col in [
+    numeric_cols = [
         "evidence_drivers",
         "intervention_evidence_score",
         "exposure_linked_to_intervention_area",
         "economic_attention_score",
-    ]:
+    ]
+
+    for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
     df = df[
@@ -349,29 +214,11 @@ def _build_action_table(
         )
     )
 
-    df["recommended_management_investigations"] = df["driver_group"].apply(
-        lambda x: _join(
-            MANAGEMENT_INVESTIGATIONS.get(
-                x,
-                ["Review this workforce domain before making decisions."]
-            )
-        )
-    )
-
-    df["business_risks_if_ignored"] = df["driver_group"].apply(
-        lambda x: _join(
-            BUSINESS_RISKS.get(
-                x,
-                ["Potential workforce risk may remain unexplained."]
-            )
-        )
-    )
-
     df["executive_summary"] = df.apply(
         lambda row: (
-            f"{row['driver_group']} appears as a management priority because it is "
-            f"supported by {int(row['evidence_drivers'])} evidence driver(s) and is linked "
-            f"to approximately ${row['exposure_linked_to_intervention_area']:,.0f} "
+            f"{row['driver_group']} was identified because it is supported by "
+            f"{int(row['evidence_drivers'])} evidence driver(s) and is linked to "
+            f"approximately ${row['exposure_linked_to_intervention_area']:,.0f} "
             f"of modeled workforce exposure."
         ),
         axis=1,
@@ -386,12 +233,12 @@ def _build_investigation_table(
     top_n_per_dimension: int = 5,
 ) -> pd.DataFrame:
 
-    required = [
+    required_cols = [
         "expected_attrition_cost",
         "predicted_attrition_probability",
     ]
 
-    if any(col not in workforce_df.columns for col in required):
+    if any(col not in workforce_df.columns for col in required_cols):
         return pd.DataFrame()
 
     df = workforce_df.copy()
@@ -420,16 +267,14 @@ def _build_investigation_table(
             action_row["exposure_linked_to_intervention_area"]
         )
 
-        for dimension_name, candidates in DIMENSION_CANDIDATES.items():
+        for dimension_name, candidates in CORE_DIMENSIONS.items():
 
             dim_col = _first_existing_column(df, candidates)
 
             if dim_col is None:
                 continue
 
-            temp = df[
-                df[dim_col].notna()
-            ].copy()
+            temp = df[df[dim_col].notna()].copy()
 
             if temp.empty:
                 continue
@@ -548,9 +393,8 @@ def build_workforce_action_investigation(
 
     if investigation_df.empty:
         warnings.append(
-            "Investigation drill-down could not be generated. This usually means "
-            "expected_attrition_cost, predicted_attrition_probability, or usable "
-            "segment columns are missing."
+            "Investigation drilldown could not be generated because required "
+            "workforce exposure or segmentation columns were missing."
         )
 
     warnings.append(
