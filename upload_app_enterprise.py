@@ -5,7 +5,9 @@ import pandas as pd
 
 from hcrl_schema import standardize_workforce_data
 from hcrl_onet_mapper import map_to_onet
-
+from hcrl_executive_intelligence_brief_engine import (
+    build_executive_intelligence_brief,
+)
 from hcrl_driver_recommendation_engine import build_driver_recommendations
 from hcrl_attrition_driver_engine import build_attrition_driver_table
 
@@ -998,6 +1000,149 @@ if (
 
 else:
     st.info("Intervention Economics must run before Workforce Action Intelligence.")
+
+
+# =====================================================
+# 18. EXECUTIVE INTELLIGENCE BRIEF
+# =====================================================
+
+st.header("18. Executive Intelligence Brief")
+
+if (
+    "action_df" in locals()
+    and action_df is not None
+    and not action_df.empty
+):
+
+    if "investigation_df" not in locals():
+        investigation_df = pd.DataFrame()
+
+    executive_brief_df, executive_brief_report = (
+        build_executive_intelligence_brief(
+            action_df=action_df,
+            investigation_df=investigation_df,
+        )
+    )
+
+    if executive_brief_report.errors:
+        st.error("Executive Intelligence Brief errors:")
+        for error in executive_brief_report.errors:
+            st.write(f"- {error}")
+
+    else:
+        st.metric(
+            "Executive Briefs Generated",
+            executive_brief_report.briefs_generated,
+        )
+
+        if executive_brief_report.warnings:
+            st.warning("Executive Intelligence Brief warnings:")
+            for warning in executive_brief_report.warnings:
+                st.write(f"- {warning}")
+
+        top_brief = executive_brief_df.iloc[0]
+
+        st.subheader("Board-Level Summary")
+
+        c1, c2, c3, c4 = st.columns(4)
+
+        c1.metric("Top Priority", top_brief["workforce_priority"])
+        c2.metric(
+            "Linked Exposure",
+            f"${top_brief['linked_modeled_exposure']:,.0f}",
+        )
+        c3.metric("Evidence Strength", top_brief["evidence_strength"])
+        c4.metric("Attention", top_brief["management_attention"])
+
+        st.success(top_brief["board_summary"])
+
+        st.subheader("Executive Narrative")
+
+        st.info(top_brief["executive_narrative"])
+
+        st.subheader("Where Leadership Should Start")
+
+        c1, c2, c3 = st.columns(3)
+
+        c1.metric("Top Department", top_brief["top_department"])
+        c2.metric("Top Job Role", top_brief["top_job_role"])
+        c3.metric("Top Job Level", top_brief["top_job_level"])
+
+        st.write("**Concentration points:**")
+        for point in str(top_brief["concentration_points"]).split(" | "):
+            st.write(f"- {point}")
+
+        st.subheader("Full Executive Brief Table")
+
+        display_cols = [
+            "brief_rank",
+            "workforce_priority",
+            "recommended_investigation_area",
+            "actionability",
+            "evidence_strength",
+            "management_attention",
+            "linked_modeled_exposure",
+            "evidence_drivers",
+            "top_department",
+            "top_job_role",
+            "top_job_level",
+            "executive_narrative",
+        ]
+
+        st.dataframe(
+            executive_brief_df[display_cols],
+            use_container_width=True,
+        )
+
+        selected_brief_priority = st.selectbox(
+            "Choose priority brief",
+            executive_brief_df["workforce_priority"].tolist(),
+        )
+
+        selected_brief = executive_brief_df[
+            executive_brief_df["workforce_priority"] == selected_brief_priority
+        ].iloc[0]
+
+        st.subheader("Selected Executive Brief")
+
+        st.markdown(
+            f"""
+### Priority #{int(selected_brief['brief_rank'])}: {selected_brief['workforce_priority']}
+
+**Recommended investigation area:** {selected_brief['recommended_investigation_area']}
+
+**Management attention:** {selected_brief['management_attention']}
+
+**Evidence strength:** {selected_brief['evidence_strength']}
+
+**Linked modeled exposure:** ${selected_brief['linked_modeled_exposure']:,.0f}
+
+**Evidence drivers:** {int(selected_brief['evidence_drivers'])}
+
+**Supporting variables:** {selected_brief['supporting_variables']}
+
+**Primary concentration points:**  
+{selected_brief['concentration_points']}
+
+**Executive narrative:**  
+{selected_brief['executive_narrative']}
+
+**Limitations:**  
+{selected_brief['limitations']}
+"""
+        )
+
+        st.download_button(
+            label="Download Executive Intelligence Brief",
+            data=executive_brief_df.to_csv(index=False).encode("utf-8"),
+            file_name="hcrl_executive_intelligence_brief.csv",
+            mime="text/csv",
+        )
+
+else:
+    st.info(
+        "Workforce Action Intelligence must run before Executive Intelligence Brief."
+    )
 
 with st.expander("Methodology and Limitations"):
     st.write(
