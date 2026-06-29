@@ -816,7 +816,6 @@ if (
             st.write(f"- {error}")
 
     else:
-
         st.metric(
             "Action Areas Identified",
             action_report.action_areas_identified,
@@ -833,29 +832,13 @@ if (
 
         c1, c2, c3, c4 = st.columns(4)
 
-        with c1:
-            st.metric(
-                "Highest Priority",
-                top["driver_group"],
-            )
-
-        with c2:
-            st.metric(
-                "Linked Exposure",
-                f"${top['exposure_linked_to_intervention_area']:,.0f}",
-            )
-
-        with c3:
-            st.metric(
-                "Evidence Strength",
-                top["evidence_strength"],
-            )
-
-        with c4:
-            st.metric(
-                "Management Attention",
-                top["management_attention"],
-            )
+        c1.metric("Highest Priority", top["driver_group"])
+        c2.metric(
+            "Linked Exposure",
+            f"${top['exposure_linked_to_intervention_area']:,.0f}",
+        )
+        c3.metric("Evidence Strength", top["evidence_strength"])
+        c4.metric("Management Attention", top["management_attention"])
 
         st.subheader("Executive Priority Dashboard")
 
@@ -878,7 +861,7 @@ if (
         )
 
         selected_priority = st.selectbox(
-            "Choose priority area for investigation drill-down",
+            "Choose priority area for investigation drilldown",
             action_df["driver_group"].tolist(),
         )
 
@@ -886,89 +869,117 @@ if (
             action_df["driver_group"] == selected_priority
         ].iloc[0]
 
-        st.subheader("Selected Priority Briefing")
-
-        st.success(
-            f"""
-            Workforce domain: **{selected_action['driver_group']}**
-
-            Recommended investigation area: **{selected_action['intervention_area']}**
-
-            Management attention: **{selected_action['management_attention']}**
-
-            Evidence strength: **{selected_action['evidence_strength']}**
-
-            Modeled exposure linked to this area: **${selected_action['exposure_linked_to_intervention_area']:,.0f}**
-
-            Supporting variables: **{selected_action['supporting_variables']}**
-            """
-        )
-
-        st.markdown("### What management should investigate")
-
-        for question in str(selected_action["management_questions"]).split(" | "):
-            st.write(f"- {question}")
-
-        st.markdown("### Recommended management investigations")
-
-        for investigation in str(
-            selected_action["recommended_management_investigations"]
-        ).split(" | "):
-            st.write(f"- {investigation}")
-
-        st.markdown("### Potential business risks if ignored")
-
-        for risk in str(selected_action["business_risks_if_ignored"]).split(" | "):
-            st.write(f"- {risk}")
+        selected_investigation = pd.DataFrame()
 
         if not investigation_df.empty:
-
             selected_investigation = investigation_df[
                 investigation_df["driver_group"] == selected_priority
             ].copy()
 
-            st.subheader("Where Management Should Start Looking")
+        st.subheader("Executive Briefing")
 
-            if selected_investigation.empty:
-                st.info(
-                    "No segment-level investigation rows available for this priority."
+        st.success(
+            f"""
+            **Workforce domain:** {selected_action['driver_group']}
+
+            **Recommended investigation area:** {selected_action['intervention_area']}
+
+            **Management attention:** {selected_action['management_attention']}
+
+            **Evidence strength:** {selected_action['evidence_strength']}
+
+            **Modeled exposure linked to this area:** ${selected_action['exposure_linked_to_intervention_area']:,.0f}
+
+            **Supporting variables:** {selected_action['supporting_variables']}
+            """
+        )
+
+        st.subheader("Why HCRL Flagged This")
+
+        st.write(selected_action["executive_summary"])
+
+        st.markdown("### Questions management should ask")
+
+        for question in str(selected_action["management_questions"]).split(" | "):
+            st.write(f"- {question}")
+
+        if not selected_investigation.empty:
+
+            st.subheader("Where Management Should Start")
+
+            available_dimensions = (
+                selected_investigation["dimension"]
+                .dropna()
+                .unique()
+                .tolist()
+            )
+
+            interpretation_lines = []
+
+            for dimension in available_dimensions:
+
+                dimension_table = selected_investigation[
+                    selected_investigation["dimension"] == dimension
+                ].copy()
+
+                dimension_table = dimension_table.sort_values(
+                    "allocated_exposure_linked_to_priority",
+                    ascending=False,
                 )
 
-            else:
-                available_dimensions = selected_investigation[
-                    "dimension"
-                ].dropna().unique().tolist()
+                st.markdown(f"### Exposure Concentration by {dimension}")
 
-                for dimension in available_dimensions:
+                display_cols = [
+                    "segment",
+                    "employees",
+                    "avg_predicted_attrition_probability",
+                    "total_segment_exposure",
+                    "share_of_company_exposure",
+                    "allocated_exposure_linked_to_priority",
+                ]
 
-                    dimension_table = selected_investigation[
-                        selected_investigation["dimension"] == dimension
-                    ].copy()
+                st.dataframe(
+                    dimension_table[display_cols],
+                    use_container_width=True,
+                )
 
-                    st.markdown(f"### Exposure Concentration by {dimension}")
+                top_segment = dimension_table.iloc[0]
 
-                    display_cols = [
-                        "segment",
-                        "employees",
-                        "avg_predicted_attrition_probability",
-                        "total_segment_exposure",
-                        "share_of_company_exposure",
-                        "allocated_exposure_linked_to_priority",
-                    ]
+                st.write(
+                    f"Highest-exposure {dimension.lower()}: "
+                    f"**{top_segment['segment']}**, with approximately "
+                    f"**${top_segment['allocated_exposure_linked_to_priority']:,.0f}** "
+                    f"of allocated exposure linked to this priority area."
+                )
 
-                    st.dataframe(
-                        dimension_table[display_cols],
-                        use_container_width=True,
-                    )
+                interpretation_lines.append(
+                    f"- **{dimension}:** {top_segment['segment']} "
+                    f"(${top_segment['allocated_exposure_linked_to_priority']:,.0f} allocated exposure)"
+                )
 
-                    top_segment = dimension_table.iloc[0]
+            st.subheader("HCRL Executive Interpretation")
 
-                    st.write(
-                        f"Highest-exposure {dimension.lower()}: "
-                        f"**{top_segment['segment']}**, with approximately "
-                        f"**${top_segment['allocated_exposure_linked_to_priority']:,.0f}** "
-                        f"of allocated exposure linked to this priority area."
-                    )
+            st.info(
+                f"""
+                **{selected_action['driver_group']}** is the selected workforce priority.
+
+                HCRL identified this area because the uploaded workforce data shows evidence from:
+                **{selected_action['supporting_variables']}**.
+
+                The largest concentration points for management review are:
+
+                {chr(10).join(interpretation_lines)}
+
+                Management should begin investigation within these exposed workforce segments before expanding the review company-wide.
+
+                This is an evidence-aligned investigation briefing, not a causal recommendation, ROI estimate, or guaranteed savings forecast.
+                """
+            )
+
+        else:
+            st.info(
+                "No segment-level investigation drilldown is available for this priority."
+            )
 
         st.download_button(
             label="Download Workforce Action Priorities",
