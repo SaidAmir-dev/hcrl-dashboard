@@ -1007,8 +1007,6 @@ else:
 # 18. EXECUTIVE INTELLIGENCE BRIEF
 # =====================================================
 
-st.header("18. Executive Intelligence Brief")
-
 render_executive_intelligence_brief(
     action_df=action_df,
     investigation_df=investigation_df,
