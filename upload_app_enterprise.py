@@ -1013,88 +1013,77 @@ render_executive_intelligence_brief(
     workforce_df=df,
 )
 
-with st.expander("Methodology, Assumptions & Governance"):
+with st.expander("Methodology & Enterprise Limitations", expanded=False):
 
-    st.markdown(
-    """
-### Executive Intelligence Methodology
+    st.markdown("### HCRL Methodology")
 
-The **HCRL Executive Intelligence Brief** transforms workforce analytics into executive decision-support by combining modeled workforce exposure, evidence drivers, organizational concentration analysis, and workforce prioritization.
+    st.markdown("""
+The Executive Intelligence Brief is the final decision-support layer of the HCRL Workforce Intelligence Platform.
 
-Rather than identifying individual employees for action, the objective is to identify **where leadership should begin investigation** based on quantitative evidence generated throughout the HCRL analytics pipeline.
+Rather than generating new predictive models, this module synthesizes validated outputs from previous HCRL engines into executive-ready intelligence designed for board-level review.
 
-Executive priorities are produced by integrating evidence from multiple analytical modules, including workforce risk estimation, economic exposure modeling, organizational concentration analysis, and decision intelligence.
-
----
-
-### How Executive Priorities Are Generated
-
-Each workforce priority is evaluated using four complementary dimensions:
-
-- **Modeled Workforce Exposure** – estimated economic exposure associated with the workforce priority.
-- **Evidence Strength** – quantity and consistency of supporting workforce evidence.
-- **Organizational Concentration** – concentration of modeled exposure across departments, occupations, job levels, locations, or other available organizational dimensions.
-- **Management Priority Ranking** – relative investigation priority compared with all other identified workforce domains.
-
-Higher-ranked priorities represent areas where quantitative evidence suggests management review may provide the greatest organizational insight.
-
----
-
-### Governance & Interpretation
-
-This Executive Intelligence Brief is intended to support executive decision-making by identifying investigation priorities supported by quantitative workforce evidence.
-
-The report:
-
-- Identifies workforce investigation priorities
-- Summarizes evidence supporting each priority
-- Highlights organizational concentration points
-- Supports executive workforce reviews
-
-The report does **not**:
-
-- Prove causality
-- Predict future business outcomes with certainty
-- Estimate guaranteed financial savings
-- Recommend hiring, firing, promotion, or compensation decisions
-- Replace executive or managerial judgment
-
-All workforce decisions remain the responsibility of organizational leadership.
-
----
-
-### Enterprise Assumptions
-
-Some analytical outputs depend on the availability and quality of enterprise workforce data.
-
-Examples include:
-
-- Historical workforce outcome data
-- Replacement cost assumptions
-- Organization-specific compensation information
-- O*NET occupation mapping quality
-- Internal workforce structure
-- Company-specific HR policies
-
-Where enterprise information is unavailable, HCRL reports findings using only validated quantitative evidence and avoids unsupported assumptions.
-
----
-
-### HCRL Analytics Platform
-
-The Executive Intelligence Brief is one component of the broader **HCRL Workforce Intelligence Platform**, which includes:
+The Executive Intelligence Brief combines information produced by:
 
 - Workforce Data Validation
-- Occupation Intelligence
-- Task Intelligence
-- Attrition Risk Modeling
-- Economic Exposure Modeling
-- Decision Intelligence
-- Workforce Action Intelligence
-- Executive Intelligence Briefing
+- Enterprise Schema Standardization
+- O*NET Occupation Mapping
+- Task Intelligence Engine
+- Attrition Risk Engine
+- Economic Exposure Engine
+- Driver Intelligence Engine
+- Action Intelligence Engine
+- Investigation Intelligence Engine
+- Intervention Economics Engine
 
-Each module operates independently while contributing evidence to a unified executive decision-support framework.
-    """
+The objective is to identify where workforce exposure is most visibly concentrated, summarize supporting evidence, prioritize management investigation, and provide leadership with structured decision-support.
+
+The Executive Intelligence Brief is descriptive and prioritization-oriented. It is not a predictive model itself.
+    """)
+
+    st.markdown("---")
+
+    st.markdown("### Interpretation Guidance")
+
+    st.info("""
+Linked Modeled Exposure represents modeled economic workforce exposure allocated to each workforce priority using HCRL economic exposure modeling.
+
+Evidence Strength summarizes the quantity and consistency of supporting workforce signals identified across HCRL analytical modules.
+
+Management Attention reflects investigation priority only. It does not prescribe urgency of organizational action.
+
+Concentration Analysis identifies where modeled exposure is most visible across available organizational dimensions (Department, Job Role, Job Level, Location, Business Unit, etc.).
+
+Executive Narratives summarize quantitative model outputs into board-ready decision-support language.
+    """)
+
+    st.markdown("---")
+
+    st.markdown("### Enterprise Limitations")
+
+    st.warning("""
+This report should be interpreted together with management judgment and organizational context.
+
+Current enterprise limitations include:
+
+• Company-specific attrition prediction requires historical employee separation outcomes.
+
+• Organizations without historical attrition data require an externally calibrated baseline workforce-risk model.
+
+• Economic exposure estimates depend on available compensation, workforce cost, or replacement-cost information.
+
+• Intervention Economics requires organization-specific implementation costs and expected benefit assumptions.
+
+• O*NET task intelligence depends on successful occupation mapping quality.
+
+• Executive Intelligence identifies investigation priorities only and does not determine causes of workforce behavior.
+
+• Results should support leadership review rather than replace HR, legal, operational, or executive decision-making.
+    """)
+
+    st.markdown("---")
+
+    st.caption(
+        "HCRL Executive Intelligence Brief is an evidence-aligned workforce decision-support system. "
+        "It does not establish causality, estimate financial ROI, recommend employee-level actions, "
+        "or automate employment decisions."
     )
-st.markdown("---")
-st.caption("Human Capital Risk Lab | Enterprise Workforce Transformation Intelligence")
