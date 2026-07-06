@@ -1013,29 +1013,88 @@ render_executive_intelligence_brief(
     workforce_df=df,
 )
 
-with st.expander("Methodology and Limitations"):
-    st.write(
-        """
-HCRL is a quantitative workforce transformation intelligence platform.
+with st.expander("Methodology, Assumptions & Governance"):
 
-The system separates workforce data validation, occupation mapping, task
-intelligence, attrition risk estimation, economic exposure modeling, decision
-intelligence, and intervention economics into independent modules.
+    st.markdown(
+    """
+### Executive Intelligence Methodology
 
-The platform does not make firing recommendations.
+The **HCRL Executive Intelligence Brief** transforms workforce analytics into executive decision-support by combining modeled workforce exposure, evidence drivers, organizational concentration analysis, and workforce prioritization.
 
-Current enterprise limitations:
-- Company-specific attrition prediction requires historical separation outcomes.
-- If no historical attrition outcomes exist, an external labor-market baseline
-  risk model is required.
-- Expected cost estimation requires replacement-cost inputs or an externally
-  calibrated replacement-cost model.
-- Intervention ROI requires company-supplied or externally validated cost and
-  benefit assumptions.
-- O*NET mapping should be reviewed when match status is review_required.
-- Task intelligence depends on successful O*NET occupation mapping.
-        """
+Rather than identifying individual employees for action, the objective is to identify **where leadership should begin investigation** based on quantitative evidence generated throughout the HCRL analytics pipeline.
+
+Executive priorities are produced by integrating evidence from multiple analytical modules, including workforce risk estimation, economic exposure modeling, organizational concentration analysis, and decision intelligence.
+
+---
+
+### How Executive Priorities Are Generated
+
+Each workforce priority is evaluated using four complementary dimensions:
+
+- **Modeled Workforce Exposure** – estimated economic exposure associated with the workforce priority.
+- **Evidence Strength** – quantity and consistency of supporting workforce evidence.
+- **Organizational Concentration** – concentration of modeled exposure across departments, occupations, job levels, locations, or other available organizational dimensions.
+- **Management Priority Ranking** – relative investigation priority compared with all other identified workforce domains.
+
+Higher-ranked priorities represent areas where quantitative evidence suggests management review may provide the greatest organizational insight.
+
+---
+
+### Governance & Interpretation
+
+This Executive Intelligence Brief is intended to support executive decision-making by identifying investigation priorities supported by quantitative workforce evidence.
+
+The report:
+
+- Identifies workforce investigation priorities
+- Summarizes evidence supporting each priority
+- Highlights organizational concentration points
+- Supports executive workforce reviews
+
+The report does **not**:
+
+- Prove causality
+- Predict future business outcomes with certainty
+- Estimate guaranteed financial savings
+- Recommend hiring, firing, promotion, or compensation decisions
+- Replace executive or managerial judgment
+
+All workforce decisions remain the responsibility of organizational leadership.
+
+---
+
+### Enterprise Assumptions
+
+Some analytical outputs depend on the availability and quality of enterprise workforce data.
+
+Examples include:
+
+- Historical workforce outcome data
+- Replacement cost assumptions
+- Organization-specific compensation information
+- O*NET occupation mapping quality
+- Internal workforce structure
+- Company-specific HR policies
+
+Where enterprise information is unavailable, HCRL reports findings using only validated quantitative evidence and avoids unsupported assumptions.
+
+---
+
+### HCRL Analytics Platform
+
+The Executive Intelligence Brief is one component of the broader **HCRL Workforce Intelligence Platform**, which includes:
+
+- Workforce Data Validation
+- Occupation Intelligence
+- Task Intelligence
+- Attrition Risk Modeling
+- Economic Exposure Modeling
+- Decision Intelligence
+- Workforce Action Intelligence
+- Executive Intelligence Briefing
+
+Each module operates independently while contributing evidence to a unified executive decision-support framework.
+    """
     )
-
 st.markdown("---")
 st.caption("Human Capital Risk Lab | Enterprise Workforce Transformation Intelligence")
