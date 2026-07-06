@@ -521,20 +521,3 @@ def render_executive_intelligence_brief(
             mime="text/csv",
         )
 
-    with st.expander("Methodology and Limitations"):
-        st.write(
-            """
-            HCRL Executive Intelligence Brief converts modeled workforce exposure,
-            driver evidence, and segment concentration into executive decision-support
-            narratives.
-
-            The brief identifies where leadership may begin investigation. It does not
-            establish causality, prescribe employment decisions, estimate ROI, guarantee
-            savings, or replace human management judgment.
-
-            Linked exposure is modeled exposure allocated to workforce priority areas
-            using the prior Action Intelligence and Intervention Economics outputs.
-            Segment concentration identifies where the modeled exposure is most visible
-            across available organizational dimensions such as department, role, and job level.
-            """
-        )
