@@ -1009,11 +1009,11 @@ else:
 
 st.header("18. Executive Intelligence Brief")
 
-   render_executive_intelligence_brief(
-       action_df=action_df,
-       investigation_df=investigation_df,
-       workforce_df=df,
-   )
+render_executive_intelligence_brief(
+    action_df=action_df,
+    investigation_df=investigation_df,
+    workforce_df=df,
+)
 
 with st.expander("Methodology and Limitations"):
     st.write(
