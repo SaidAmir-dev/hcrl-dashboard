@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from html import escape as _html_escape
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -257,6 +258,20 @@ def _safe_int(value, default: int = 0) -> int:
 
 def _money(value) -> str:
     return f"${_safe_float(value):,.0f}"
+
+
+def _md_escape_money(text: str) -> str:
+    """Escape dollar signs before rendering plain text through Streamlit Markdown.
+
+    Streamlit treats dollar signs as LaTeX delimiters inside st.write/st.markdown.
+    This helper prevents broken output like `1,615,613allocatedexposure` and
+    inconsistent red/math fonts.
+    """
+    return str(text).replace("$", "\\$")
+
+
+def _html(value) -> str:
+    return _html_escape(_clean(value), quote=True)
 
 
 def _pct(value) -> str:
@@ -909,7 +924,7 @@ def render_executive_intelligence_brief(
     if report.errors:
         st.error("Executive Intelligence Brief errors:")
         for error in report.errors:
-            st.write(f"- {error}")
+            st.markdown(f"- {_md_escape_money(error)}")
         return
 
     if executive_brief_df.empty:
@@ -1041,11 +1056,11 @@ def render_executive_intelligence_brief(
 
     st.subheader("Critical Executive Questions")
     for question in _split_pipe(selected["management_questions"]):
-        st.write(f"- {question}")
+        st.markdown(f"- {_md_escape_money(question)}")
 
     st.subheader("Recommended Investigation Focus")
     for action in _split_pipe(selected["review_actions"]):
-        st.write(f"- {action}")
+        st.markdown(f"- {_md_escape_money(action)}")
 
     _render_executive_recommendations(selected)
 
@@ -1054,7 +1069,7 @@ def render_executive_intelligence_brief(
 
     st.subheader("Potential Business Risks if Ignored")
     for risk in _split_pipe(selected["risk_if_ignored"]):
-        st.write(f"- {risk}")
+        st.markdown(f"- {_md_escape_money(risk)}")
 
     if investigation_df is not None and not investigation_df.empty:
         st.subheader("Visual Investigation Drilldown")
@@ -1088,6 +1103,10 @@ def render_executive_intelligence_brief(
                         selected_priority=selected_priority,
                         dimension=dimension,
                     )
+
+    st.subheader("Executive Assessment")
+    clean_assessment = _md_escape_money(selected["executive_assessment"])
+    st.info(clean_assessment)
 
     st.download_button(
         label="Download Executive Intelligence Brief",
