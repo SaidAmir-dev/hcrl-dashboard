@@ -607,6 +607,130 @@ def _render_investigation_tree(selected: pd.Series) -> None:
 
     st.markdown(html, unsafe_allow_html=True)
 
+def _render_executive_explainability(
+    selected: pd.Series,
+    investigation_df: Optional[pd.DataFrame],
+) -> None:
+
+    st.subheader("Why This Is Priority #1")
+
+    priority = selected["workforce_priority"]
+    linked_exposure = _money(selected["linked_modeled_exposure"])
+    evidence_drivers = int(selected["evidence_drivers"])
+    supporting_variables = selected["supporting_variables"]
+
+    st.markdown(
+        f"""
+<div style="
+    background:#fff7ed;
+    border-left:6px solid #f97316;
+    border-radius:16px;
+    padding:22px;
+    font-size:17px;
+    line-height:1.6;
+    margin-bottom:18px;
+">
+<strong>{priority}</strong> is ranked as a top workforce priority because it combines
+<strong>{linked_exposure}</strong> of modeled workforce exposure with
+<strong>{evidence_drivers}</strong> supporting workforce evidence signal(s).
+
+<br><br>
+
+<strong>Supporting evidence variables:</strong><br>
+{supporting_variables}
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if investigation_df is None or investigation_df.empty:
+        st.info("No segment-level explanation is available for this priority.")
+        return
+
+    subset = investigation_df[
+        investigation_df["driver_group"].astype(str) == str(priority)
+    ].copy()
+
+    if subset.empty:
+        st.info("No segment-level explanation is available for this priority.")
+        return
+
+    subset["allocated_exposure_linked_to_priority"] = pd.to_numeric(
+        subset["allocated_exposure_linked_to_priority"],
+        errors="coerce",
+    ).fillna(0)
+
+    explanation_rows = []
+
+    for dimension in subset["dimension"].dropna().unique():
+
+        dim_df = subset[
+            subset["dimension"].astype(str) == str(dimension)
+        ].copy()
+
+        if dim_df.empty:
+            continue
+
+        dim_df = dim_df.sort_values(
+            "allocated_exposure_linked_to_priority",
+            ascending=False,
+        )
+
+        top_row = dim_df.iloc[0]
+        total_dim_exposure = dim_df["allocated_exposure_linked_to_priority"].sum()
+
+        share = 0.0
+        if total_dim_exposure > 0:
+            share = (
+                top_row["allocated_exposure_linked_to_priority"]
+                / total_dim_exposure
+            )
+
+        explanation_rows.append(
+            {
+                "Dimension": dimension,
+                "Top Segment": top_row["segment"],
+                "Employees": int(top_row["employees"]),
+                "Allocated Exposure": _money(
+                    top_row["allocated_exposure_linked_to_priority"]
+                ),
+                "Share Within Dimension": f"{share:.1%}",
+            }
+        )
+
+    if explanation_rows:
+
+        explanation_df = pd.DataFrame(explanation_rows)
+
+        st.markdown("### Main Evidence Concentration Points")
+
+        st.dataframe(
+            explanation_df,
+            use_container_width=True,
+        )
+
+        top_points = explanation_df.head(3)
+
+        bullets = []
+        for _, row in top_points.iterrows():
+            bullets.append(
+                f"- **{row['Dimension']}**: {row['Top Segment']} "
+                f"({row['Allocated Exposure']}, {row['Share Within Dimension']} of visible priority exposure in this dimension)"
+            )
+
+        st.markdown("### Executive Explanation")
+
+        st.info(
+            f"""
+{priority} is not ranked highly because of a single metric alone. It appears as a top priority because modeled exposure, driver evidence, and organizational concentration point in the same direction.
+
+The strongest visible concentration points are:
+
+{chr(10).join(bullets)}
+
+This means leadership should begin by validating whether these exposed workforce segments explain the observed pattern before considering any intervention.
+            """
+        )
 
 def render_executive_intelligence_brief(
     action_df: pd.DataFrame,
@@ -740,7 +864,10 @@ def render_executive_intelligence_brief(
     )
 
     _render_investigation_tree(selected)
-
+    _render_executive_explainability(
+        selected=selected,
+        investigation_df=investigation_df,
+    )
     st.subheader("Critical Executive Questions")
 
     for question in _split_pipe(selected["management_questions"]):
