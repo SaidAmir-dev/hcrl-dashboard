@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 import streamlit as st
+import plotly.express as px
 
 
 @dataclass
@@ -13,6 +14,10 @@ class ExecutiveBriefReport:
     warnings: List[str]
     errors: List[str]
 
+
+# =====================================================
+# DOMAIN LANGUAGE
+# =====================================================
 
 DOMAIN_LANGUAGE: Dict[str, Dict[str, object]] = {
     "Career Progression": {
@@ -179,6 +184,10 @@ DOMAIN_LANGUAGE: Dict[str, Dict[str, object]] = {
 }
 
 
+# =====================================================
+# HELPERS
+# =====================================================
+
 def _safe_float(value, default: float = 0.0) -> float:
     try:
         if pd.isna(value):
@@ -201,10 +210,6 @@ def _money(value) -> str:
     return f"${_safe_float(value):,.0f}"
 
 
-def _md_money(value) -> str:
-    return _money(value).replace("$", r"\$")
-
-
 def _clean(value) -> str:
     if value is None:
         return "Not available"
@@ -213,16 +218,13 @@ def _clean(value) -> str:
             return "Not available"
     except Exception:
         pass
-
     text = str(value).strip()
     return text if text else "Not available"
 
 
 def _format_segment(value) -> str:
     text = _clean(value)
-    if text.endswith(".0"):
-        return text[:-2]
-    return text
+    return text[:-2] if text.endswith(".0") else text
 
 
 def _split_pipe(value) -> List[str]:
@@ -301,40 +303,15 @@ def _card(title: str, value: str, subtitle: str = "") -> None:
     )
 
 
-def _render_step_flow(steps: List[str]) -> None:
-    if not steps:
-        return
-
-    cols = st.columns(len(steps))
-
-    for idx, step in enumerate(steps):
-        with cols[idx]:
-            st.markdown(
-                f"""
-<div style="
-    border:1px solid #d9dee7;
-    border-radius:14px;
-    padding:16px;
-    min-height:108px;
-    background:#ffffff;
-    box-shadow:0 1px 2px rgba(0,0,0,0.04);
-">
-    <div style="font-size:13px;color:#667085;margin-bottom:6px;">
-        Step {idx + 1}
-    </div>
-    <div style="font-size:16px;font-weight:650;color:#1f2937;">
-        {step}
-    </div>
-</div>
-                """,
-                unsafe_allow_html=True,
-            )
-
+# =====================================================
+# CORE BUILD
+# =====================================================
 
 def _investigation_points(
     investigation_df: pd.DataFrame,
     domain: str,
 ) -> Tuple[List[str], Dict[str, str], Dict[str, float]]:
+
     points: List[str] = []
     top_by_dimension: Dict[str, str] = {}
     exposure_by_dimension: Dict[str, float] = {}
@@ -342,10 +319,12 @@ def _investigation_points(
     if investigation_df is None or investigation_df.empty:
         return points, top_by_dimension, exposure_by_dimension
 
-    if "driver_group" not in investigation_df.columns:
-        return points, top_by_dimension, exposure_by_dimension
-
-    required = ["dimension", "segment", "allocated_exposure_linked_to_priority"]
+    required = [
+        "driver_group",
+        "dimension",
+        "segment",
+        "allocated_exposure_linked_to_priority",
+    ]
 
     if any(col not in investigation_df.columns for col in required):
         return points, top_by_dimension, exposure_by_dimension
@@ -374,17 +353,16 @@ def _investigation_points(
     ]
 
     for dimension in dimensions:
-        dim_table = df[df["dimension"].astype(str) == dimension].copy()
-
-        if dim_table.empty:
+        dim_df = df[df["dimension"].astype(str) == dimension].copy()
+        if dim_df.empty:
             continue
 
-        dim_table = dim_table.sort_values(
+        dim_df = dim_df.sort_values(
             "allocated_exposure_linked_to_priority",
             ascending=False,
         )
 
-        top = dim_table.iloc[0]
+        top = dim_df.iloc[0]
         segment = _format_segment(top["segment"])
         exposure = _safe_float(top["allocated_exposure_linked_to_priority"])
 
@@ -434,10 +412,7 @@ def build_executive_intelligence_brief(
         domain = _clean(action["driver_group"])
         config = _domain_config(domain)
 
-        concentration_points, top_by_dimension, exposure_by_dimension = _investigation_points(
-            investigation_df,
-            domain,
-        )
+        points, top_dim, exp_dim = _investigation_points(investigation_df, domain)
 
         linked_exposure = _safe_float(action["exposure_linked_to_intervention_area"])
         evidence_drivers = _safe_int(action["evidence_drivers"])
@@ -445,38 +420,17 @@ def build_executive_intelligence_brief(
         management_attention = _clean(action["management_attention"])
 
         concentration_sentence = (
-            "; ".join(concentration_points[:4])
-            if concentration_points
+            "; ".join(points[:4])
+            if points
             else "segment concentration is not available from the uploaded data"
-        )
-
-        executive_assessment = (
-            f"{domain} represents Priority #{_safe_int(action['action_rank'])}. "
-            f"The uploaded workforce data shows {evidence_drivers} supporting evidence signal(s) "
-            f"linked to approximately {_money(linked_exposure)} of modeled workforce exposure. "
-            f"The most visible concentration points are {concentration_sentence}. "
-            f"Leadership should begin investigation in these exposed workforce segments before expanding the review company-wide."
-        )
-
-        executive_story = (
-            f"{domain} is the leading workforce investigation area. "
-            f"Evidence is strongest in {top_by_dimension.get('Department', 'the highest-exposure organizational areas')}, "
-            f"with role-level concentration around {top_by_dimension.get('Job Role', 'the most exposed workforce roles')}. "
-            f"The evidence should be reviewed through the lens of: {config['primary_question']}"
-        )
-
-        board_summary = (
-            f"{domain}: {_money(linked_exposure)} linked exposure, "
-            f"{evidence_strength} evidence strength, {management_attention}."
         )
 
         rows.append(
             {
                 "brief_rank": _safe_int(action["action_rank"]),
                 "workforce_priority": domain,
-                "executive_finding": config["finding"],
-                "executive_story": executive_story,
                 "recommended_investigation_area": _clean(action["intervention_area"]),
+                "executive_finding": config["finding"],
                 "primary_management_question": config["primary_question"],
                 "actionability": _clean(action["actionability"]),
                 "evidence_strength": evidence_strength,
@@ -486,16 +440,33 @@ def build_executive_intelligence_brief(
                 "linked_modeled_exposure": linked_exposure,
                 "evidence_drivers": evidence_drivers,
                 "supporting_variables": _clean(action["supporting_variables"]),
-                "top_department": top_by_dimension.get("Department", "Not available"),
-                "top_department_exposure": exposure_by_dimension.get("Department", 0.0),
-                "top_job_role": top_by_dimension.get("Job Role", "Not available"),
-                "top_job_role_exposure": exposure_by_dimension.get("Job Role", 0.0),
-                "top_job_level": top_by_dimension.get("Job Level", "Not available"),
-                "top_job_level_exposure": exposure_by_dimension.get("Job Level", 0.0),
-                "top_location": top_by_dimension.get("Location", "Not available"),
-                "concentration_points": " | ".join(concentration_points),
-                "executive_assessment": executive_assessment,
-                "board_summary": board_summary,
+                "top_department": top_dim.get("Department", "Not available"),
+                "top_department_exposure": exp_dim.get("Department", 0.0),
+                "top_job_role": top_dim.get("Job Role", "Not available"),
+                "top_job_role_exposure": exp_dim.get("Job Role", 0.0),
+                "top_job_level": top_dim.get("Job Level", "Not available"),
+                "top_job_level_exposure": exp_dim.get("Job Level", 0.0),
+                "top_location": top_dim.get("Location", "Not available"),
+                "concentration_points": " | ".join(points),
+                "executive_story": (
+                    f"{domain} is a visible workforce investigation priority. "
+                    f"The strongest available concentration appears in "
+                    f"{top_dim.get('Department', 'available organizational segments')}, "
+                    f"with role concentration around "
+                    f"{top_dim.get('Job Role', 'available job roles')}. "
+                    f"Leadership should investigate: {config['primary_question']}"
+                ),
+                "executive_assessment": (
+                    f"{domain} represents Priority #{_safe_int(action['action_rank'])}. "
+                    f"The uploaded workforce data shows {evidence_drivers} supporting evidence signal(s) "
+                    f"linked to approximately {_money(linked_exposure)} of modeled workforce exposure. "
+                    f"The most visible concentration points are {concentration_sentence}. "
+                    f"Leadership should begin investigation in these exposed workforce segments before expanding the review company-wide."
+                ),
+                "board_summary": (
+                    f"{domain}: {_money(linked_exposure)} linked exposure, "
+                    f"{evidence_strength} evidence strength, {management_attention}."
+                ),
                 "management_questions": " | ".join(config["questions"]),
                 "review_actions": " | ".join(config["focus"]),
                 "investigation_workflow": " | ".join(config["workflow"]),
@@ -520,19 +491,30 @@ def build_executive_intelligence_brief(
     return brief_df, ExecutiveBriefReport(len(brief_df), warnings, errors)
 
 
-def _render_top_priority_chart(executive_brief_df: pd.DataFrame) -> None:
-    chart_df = executive_brief_df[
-        ["workforce_priority", "linked_modeled_exposure"]
-    ].copy()
+# =====================================================
+# RENDER HELPERS
+# =====================================================
 
-    chart_df = chart_df.sort_values(
+def _render_priority_chart(executive_brief_df: pd.DataFrame) -> None:
+    chart_df = executive_brief_df.sort_values(
         "linked_modeled_exposure",
         ascending=False,
     ).head(8)
 
-    chart_df = chart_df.set_index("workforce_priority")
+    fig = px.bar(
+        chart_df,
+        x="workforce_priority",
+        y="linked_modeled_exposure",
+        labels={
+            "workforce_priority": "Workforce Priority",
+            "linked_modeled_exposure": "Linked Modeled Exposure",
+        },
+        text="linked_modeled_exposure",
+    )
 
-    st.bar_chart(chart_df)
+    fig.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
+    fig.update_layout(height=430, showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)
 
 
 def _render_dimension_chart(
@@ -540,8 +522,6 @@ def _render_dimension_chart(
     selected_priority: str,
     dimension: str,
 ) -> None:
-    if investigation_df is None or investigation_df.empty:
-        return
 
     df = investigation_df[
         (investigation_df["driver_group"].astype(str) == str(selected_priority))
@@ -549,6 +529,7 @@ def _render_dimension_chart(
     ].copy()
 
     if df.empty:
+        st.info(f"No {dimension} drilldown available.")
         return
 
     df["allocated_exposure_linked_to_priority"] = pd.to_numeric(
@@ -559,19 +540,75 @@ def _render_dimension_chart(
     df = df.sort_values(
         "allocated_exposure_linked_to_priority",
         ascending=False,
-    ).head(8)
+    ).head(10)
 
-    chart_df = df[
-        ["segment", "allocated_exposure_linked_to_priority"]
-    ].copy()
+    fig = px.bar(
+        df,
+        x="segment",
+        y="allocated_exposure_linked_to_priority",
+        hover_data=[
+            col for col in [
+                "employees",
+                "avg_predicted_attrition_probability",
+                "total_segment_exposure",
+                "share_of_company_exposure",
+            ]
+            if col in df.columns
+        ],
+        labels={
+            "segment": dimension,
+            "allocated_exposure_linked_to_priority": "Allocated Exposure",
+        },
+    )
 
-    chart_df["segment"] = chart_df["segment"].astype(str)
-    chart_df = chart_df.set_index("segment")
+    fig.update_traces(texttemplate="$%{y:,.0f}", textposition="outside")
+    fig.update_layout(height=430, showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)
 
-    st.bar_chart(chart_df)
+    display_cols = [
+        "segment",
+        "employees",
+        "avg_predicted_attrition_probability",
+        "total_segment_exposure",
+        "share_of_company_exposure",
+        "allocated_exposure_linked_to_priority",
+    ]
+
+    existing_cols = [c for c in display_cols if c in df.columns]
+    st.dataframe(df[existing_cols], use_container_width=True)
 
 
-def _render_investigation_tree(selected: pd.Series) -> None:
+def _render_step_flow(steps: List[str]) -> None:
+    if not steps:
+        return
+
+    cols = st.columns(len(steps))
+
+    for idx, step in enumerate(steps):
+        with cols[idx]:
+            st.markdown(
+                f"""
+<div style="
+    border:1px solid #d9dee7;
+    border-radius:14px;
+    padding:16px;
+    min-height:108px;
+    background:#ffffff;
+    box-shadow:0 1px 2px rgba(0,0,0,0.04);
+">
+    <div style="font-size:13px;color:#667085;margin-bottom:6px;">
+        Step {idx + 1}
+    </div>
+    <div style="font-size:16px;font-weight:650;color:#1f2937;">
+        {step}
+    </div>
+</div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+def _render_investigation_path(selected: pd.Series) -> None:
     nodes = [
         selected["workforce_priority"],
         selected["top_department"],
@@ -582,11 +619,11 @@ def _render_investigation_tree(selected: pd.Series) -> None:
 
     nodes = [x for x in nodes if _clean(x) != "Not available"]
 
-    st.markdown("### Investigation Path")
+    st.subheader("Investigation Path")
 
     html = "<div style='display:flex;align-items:center;gap:10px;flex-wrap:wrap;'>"
 
-    for idx, node in enumerate(nodes):
+    for i, node in enumerate(nodes):
         html += f"""
 <div style="
     border:1px solid #d1d5db;
@@ -595,142 +632,20 @@ def _render_investigation_tree(selected: pd.Series) -> None:
     background:#ffffff;
     font-weight:650;
     color:#111827;
-    box-shadow:0 1px 2px rgba(0,0,0,0.05);
 ">
     {node}
 </div>
         """
-        if idx < len(nodes) - 1:
+        if i < len(nodes) - 1:
             html += "<div style='font-size:22px;color:#667085;'>→</div>"
 
     html += "</div>"
-
     st.markdown(html, unsafe_allow_html=True)
 
-def _render_executive_explainability(
-    selected: pd.Series,
-    investigation_df: Optional[pd.DataFrame],
-) -> None:
 
-    st.subheader("Why This Is Priority #1")
-
-    priority = selected["workforce_priority"]
-    linked_exposure = _money(selected["linked_modeled_exposure"])
-    evidence_drivers = int(selected["evidence_drivers"])
-    supporting_variables = selected["supporting_variables"]
-
-    st.markdown(
-        f"""
-<div style="
-    background:#fff7ed;
-    border-left:6px solid #f97316;
-    border-radius:16px;
-    padding:22px;
-    font-size:17px;
-    line-height:1.6;
-    margin-bottom:18px;
-">
-<strong>{priority}</strong> is ranked as a top workforce priority because it combines
-<strong>{linked_exposure}</strong> of modeled workforce exposure with
-<strong>{evidence_drivers}</strong> supporting workforce evidence signal(s).
-
-<br><br>
-
-<strong>Supporting evidence variables:</strong><br>
-{supporting_variables}
-</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    if investigation_df is None or investigation_df.empty:
-        st.info("No segment-level explanation is available for this priority.")
-        return
-
-    subset = investigation_df[
-        investigation_df["driver_group"].astype(str) == str(priority)
-    ].copy()
-
-    if subset.empty:
-        st.info("No segment-level explanation is available for this priority.")
-        return
-
-    subset["allocated_exposure_linked_to_priority"] = pd.to_numeric(
-        subset["allocated_exposure_linked_to_priority"],
-        errors="coerce",
-    ).fillna(0)
-
-    explanation_rows = []
-
-    for dimension in subset["dimension"].dropna().unique():
-
-        dim_df = subset[
-            subset["dimension"].astype(str) == str(dimension)
-        ].copy()
-
-        if dim_df.empty:
-            continue
-
-        dim_df = dim_df.sort_values(
-            "allocated_exposure_linked_to_priority",
-            ascending=False,
-        )
-
-        top_row = dim_df.iloc[0]
-        total_dim_exposure = dim_df["allocated_exposure_linked_to_priority"].sum()
-
-        share = 0.0
-        if total_dim_exposure > 0:
-            share = (
-                top_row["allocated_exposure_linked_to_priority"]
-                / total_dim_exposure
-            )
-
-        explanation_rows.append(
-            {
-                "Dimension": dimension,
-                "Top Segment": top_row["segment"],
-                "Employees": int(top_row["employees"]),
-                "Allocated Exposure": _money(
-                    top_row["allocated_exposure_linked_to_priority"]
-                ),
-                "Share Within Dimension": f"{share:.1%}",
-            }
-        )
-
-    if explanation_rows:
-
-        explanation_df = pd.DataFrame(explanation_rows)
-
-        st.markdown("### Main Evidence Concentration Points")
-
-        st.dataframe(
-            explanation_df,
-            use_container_width=True,
-        )
-
-        top_points = explanation_df.head(3)
-
-        bullets = []
-        for _, row in top_points.iterrows():
-            bullets.append(
-                f"- **{row['Dimension']}**: {row['Top Segment']} "
-                f"({row['Allocated Exposure']}, {row['Share Within Dimension']} of visible priority exposure in this dimension)"
-            )
-
-        st.markdown("### Executive Explanation")
-
-        st.info(
-            f"""
-{priority} is not ranked highly because of a single metric alone. It appears as a top priority because modeled exposure, driver evidence, and organizational concentration point in the same direction.
-
-The strongest visible concentration points are:
-
-{chr(10).join(bullets)}
-
-This means leadership should begin by validating whether these exposed workforce segments explain the observed pattern before considering any intervention.
-            """
-        )
+# =====================================================
+# MAIN RENDER FUNCTION
+# =====================================================
 
 def render_executive_intelligence_brief(
     action_df: pd.DataFrame,
@@ -802,7 +717,7 @@ def render_executive_intelligence_brief(
     )
 
     st.subheader("Top Workforce Priorities")
-    _render_top_priority_chart(executive_brief_df)
+    _render_priority_chart(executive_brief_df)
 
     st.subheader("Executive Decision Matrix")
 
@@ -863,23 +778,17 @@ def render_executive_intelligence_brief(
         unsafe_allow_html=True,
     )
 
-    _render_investigation_tree(selected)
-    _render_executive_explainability(
-        selected=selected,
-        investigation_df=investigation_df,
-    )
-    st.subheader("Critical Executive Questions")
+    _render_investigation_path(selected)
 
+    st.subheader("Critical Executive Questions")
     for question in _split_pipe(selected["management_questions"]):
         st.write(f"- {question}")
 
     st.subheader("Recommended Investigation Focus")
-
     for action in _split_pipe(selected["review_actions"]):
         st.write(f"- {action}")
 
     st.subheader("Suggested Investigation Workflow")
-
     _render_step_flow(_split_pipe(selected["investigation_workflow"]))
 
     if investigation_df is not None and not investigation_df.empty:
@@ -894,6 +803,7 @@ def render_executive_intelligence_brief(
                 "Manager",
                 "Business Unit",
                 "Team",
+                "Cost Center",
             ]
             if not investigation_df[
                 (investigation_df["driver_group"].astype(str) == str(selected_priority))
@@ -914,35 +824,8 @@ def render_executive_intelligence_brief(
                         dimension=dimension,
                     )
 
-                    subset = investigation_df[
-                        (investigation_df["driver_group"].astype(str) == str(selected_priority))
-                        & (investigation_df["dimension"].astype(str) == dimension)
-                    ].copy()
-
-                    display_cols = [
-                        "segment",
-                        "employees",
-                        "avg_predicted_attrition_probability",
-                        "total_segment_exposure",
-                        "share_of_company_exposure",
-                        "allocated_exposure_linked_to_priority",
-                    ]
-
-                    existing_cols = [c for c in display_cols if c in subset.columns]
-
-                    subset = subset.sort_values(
-                        "allocated_exposure_linked_to_priority",
-                        ascending=False,
-                    )
-
-                    st.dataframe(subset[existing_cols], use_container_width=True)
-
     st.subheader("Executive Assessment")
-
-    st.markdown(
-        selected["executive_assessment"].replace("$", r"\$")
-    )
-
+    st.write(selected["executive_assessment"])
     st.info(selected["limitations"])
 
     st.download_button(
