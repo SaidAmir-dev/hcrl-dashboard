@@ -1,21 +1,3 @@
-"""
-HCRL Executive Intelligence Brief Section
-
-Production-grade executive UI layer for Section 18.
-
-Usage in upload_app_enterprise.py:
-
-from hcrl_executive_intelligence_brief_section import (
-    render_executive_intelligence_brief,
-)
-
-render_executive_intelligence_brief(
-    action_df=action_df,
-    investigation_df=investigation_df,
-    workforce_df=df,
-)
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -219,6 +201,10 @@ def _money(value) -> str:
     return f"${_safe_float(value):,.0f}"
 
 
+def _md_money(value) -> str:
+    return _money(value).replace("$", r"\$")
+
+
 def _clean(value) -> str:
     if value is None:
         return "Not available"
@@ -227,8 +213,16 @@ def _clean(value) -> str:
             return "Not available"
     except Exception:
         pass
+
     text = str(value).strip()
     return text if text else "Not available"
+
+
+def _format_segment(value) -> str:
+    text = _clean(value)
+    if text.endswith(".0"):
+        return text[:-2]
+    return text
 
 
 def _split_pipe(value) -> List[str]:
@@ -287,26 +281,21 @@ def _attention_badge(label: str) -> str:
     return "🔵 Contextual"
 
 
-def _format_segment(value) -> str:
-    text = _clean(value)
-    return text[:-2] if text.endswith(".0") else text
-
-
 def _card(title: str, value: str, subtitle: str = "") -> None:
     st.markdown(
         f"""
-        <div style="
-            border:1px solid #e5e7eb;
-            border-radius:18px;
-            padding:20px;
-            background:#ffffff;
-            box-shadow:0 1px 4px rgba(0,0,0,0.06);
-            min-height:130px;
-        ">
-            <div style="font-size:13px;color:#667085;margin-bottom:8px;">{title}</div>
-            <div style="font-size:25px;font-weight:750;color:#111827;line-height:1.2;">{value}</div>
-            <div style="font-size:13px;color:#667085;margin-top:8px;">{subtitle}</div>
-        </div>
+<div style="
+    border:1px solid #e5e7eb;
+    border-radius:18px;
+    padding:20px;
+    background:#ffffff;
+    box-shadow:0 1px 4px rgba(0,0,0,0.06);
+    min-height:130px;
+">
+    <div style="font-size:13px;color:#667085;margin-bottom:8px;">{title}</div>
+    <div style="font-size:25px;font-weight:750;color:#111827;line-height:1.2;">{value}</div>
+    <div style="font-size:13px;color:#667085;margin-top:8px;">{subtitle}</div>
+</div>
         """,
         unsafe_allow_html=True,
     )
@@ -322,21 +311,21 @@ def _render_step_flow(steps: List[str]) -> None:
         with cols[idx]:
             st.markdown(
                 f"""
-                <div style="
-                    border:1px solid #d9dee7;
-                    border-radius:14px;
-                    padding:16px;
-                    min-height:108px;
-                    background:#ffffff;
-                    box-shadow:0 1px 2px rgba(0,0,0,0.04);
-                ">
-                    <div style="font-size:13px;color:#667085;margin-bottom:6px;">
-                        Step {idx + 1}
-                    </div>
-                    <div style="font-size:16px;font-weight:650;color:#1f2937;">
-                        {step}
-                    </div>
-                </div>
+<div style="
+    border:1px solid #d9dee7;
+    border-radius:14px;
+    padding:16px;
+    min-height:108px;
+    background:#ffffff;
+    box-shadow:0 1px 2px rgba(0,0,0,0.04);
+">
+    <div style="font-size:13px;color:#667085;margin-bottom:6px;">
+        Step {idx + 1}
+    </div>
+    <div style="font-size:16px;font-weight:650;color:#1f2937;">
+        {step}
+    </div>
+</div>
                 """,
                 unsafe_allow_html=True,
             )
@@ -345,22 +334,28 @@ def _render_step_flow(steps: List[str]) -> None:
 def _investigation_points(
     investigation_df: pd.DataFrame,
     domain: str,
-) -> Tuple[List[str], Dict[str, str]]:
+) -> Tuple[List[str], Dict[str, str], Dict[str, float]]:
     points: List[str] = []
     top_by_dimension: Dict[str, str] = {}
+    exposure_by_dimension: Dict[str, float] = {}
 
     if investigation_df is None or investigation_df.empty:
-        return points, top_by_dimension
+        return points, top_by_dimension, exposure_by_dimension
 
     if "driver_group" not in investigation_df.columns:
-        return points, top_by_dimension
+        return points, top_by_dimension, exposure_by_dimension
+
+    required = ["dimension", "segment", "allocated_exposure_linked_to_priority"]
+
+    if any(col not in investigation_df.columns for col in required):
+        return points, top_by_dimension, exposure_by_dimension
 
     df = investigation_df[
         investigation_df["driver_group"].astype(str) == str(domain)
     ].copy()
 
     if df.empty:
-        return points, top_by_dimension
+        return points, top_by_dimension, exposure_by_dimension
 
     df["allocated_exposure_linked_to_priority"] = pd.to_numeric(
         df["allocated_exposure_linked_to_priority"],
@@ -394,9 +389,10 @@ def _investigation_points(
         exposure = _safe_float(top["allocated_exposure_linked_to_priority"])
 
         top_by_dimension[dimension] = segment
+        exposure_by_dimension[dimension] = exposure
         points.append(f"{dimension}: {segment} ({_money(exposure)} allocated exposure)")
 
-    return points, top_by_dimension
+    return points, top_by_dimension, exposure_by_dimension
 
 
 def build_executive_intelligence_brief(
@@ -438,7 +434,7 @@ def build_executive_intelligence_brief(
         domain = _clean(action["driver_group"])
         config = _domain_config(domain)
 
-        concentration_points, top_by_dimension = _investigation_points(
+        concentration_points, top_by_dimension, exposure_by_dimension = _investigation_points(
             investigation_df,
             domain,
         )
@@ -466,7 +462,7 @@ def build_executive_intelligence_brief(
             f"{domain} is the leading workforce investigation area. "
             f"Evidence is strongest in {top_by_dimension.get('Department', 'the highest-exposure organizational areas')}, "
             f"with role-level concentration around {top_by_dimension.get('Job Role', 'the most exposed workforce roles')}. "
-            f"The evidence should be reviewed through the lens of {config['primary_question']}"
+            f"The evidence should be reviewed through the lens of: {config['primary_question']}"
         )
 
         board_summary = (
@@ -491,8 +487,11 @@ def build_executive_intelligence_brief(
                 "evidence_drivers": evidence_drivers,
                 "supporting_variables": _clean(action["supporting_variables"]),
                 "top_department": top_by_dimension.get("Department", "Not available"),
+                "top_department_exposure": exposure_by_dimension.get("Department", 0.0),
                 "top_job_role": top_by_dimension.get("Job Role", "Not available"),
+                "top_job_role_exposure": exposure_by_dimension.get("Job Role", 0.0),
                 "top_job_level": top_by_dimension.get("Job Level", "Not available"),
+                "top_job_level_exposure": exposure_by_dimension.get("Job Level", 0.0),
                 "top_location": top_by_dimension.get("Location", "Not available"),
                 "concentration_points": " | ".join(concentration_points),
                 "executive_assessment": executive_assessment,
@@ -513,7 +512,9 @@ def build_executive_intelligence_brief(
     ).reset_index(drop=True)
 
     warnings.append(
-        "Executive Intelligence Brief synthesizes modeled exposure, driver evidence, and segment concentration into executive-ready narratives. It is not causal attribution, ROI estimation, or an automated employment decision."
+        "Executive Intelligence Brief synthesizes modeled exposure, driver evidence, "
+        "and segment concentration into executive-ready narratives. It is not causal "
+        "attribution, ROI estimation, or an automated employment decision."
     )
 
     return brief_df, ExecutiveBriefReport(len(brief_df), warnings, errors)
@@ -587,17 +588,17 @@ def _render_investigation_tree(selected: pd.Series) -> None:
 
     for idx, node in enumerate(nodes):
         html += f"""
-        <div style="
-            border:1px solid #d1d5db;
-            border-radius:999px;
-            padding:10px 16px;
-            background:#ffffff;
-            font-weight:650;
-            color:#111827;
-            box-shadow:0 1px 2px rgba(0,0,0,0.05);
-        ">
-            {node}
-        </div>
+<div style="
+    border:1px solid #d1d5db;
+    border-radius:999px;
+    padding:10px 16px;
+    background:#ffffff;
+    font-weight:650;
+    color:#111827;
+    box-shadow:0 1px 2px rgba(0,0,0,0.05);
+">
+    {node}
+</div>
         """
         if idx < len(nodes) - 1:
             html += "<div style='font-size:22px;color:#667085;'>→</div>"
@@ -659,25 +660,24 @@ def render_executive_intelligence_brief(
 
     st.markdown(
         f"""
-        <div style="
-            background:#eef6ff;
-            border-left:6px solid #2563eb;
-            border-radius:16px;
-            padding:24px;
-            font-size:18px;
-            line-height:1.65;
-            color:#102a43;
-        ">
-            {top['executive_story']}
-            <br><br>
-            <strong>Board summary:</strong> {top['board_summary']}
-        </div>
+<div style="
+    background:#eef6ff;
+    border-left:6px solid #2563eb;
+    border-radius:16px;
+    padding:24px;
+    font-size:18px;
+    line-height:1.65;
+    color:#102a43;
+">
+    {top['executive_story']}
+    <br><br>
+    <strong>Board summary:</strong> {top['board_summary']}
+</div>
         """,
         unsafe_allow_html=True,
     )
 
     st.subheader("Top Workforce Priorities")
-
     _render_top_priority_chart(executive_brief_df)
 
     st.subheader("Executive Decision Matrix")
@@ -720,21 +720,21 @@ def render_executive_intelligence_brief(
 
     st.markdown(
         f"""
-        <div style="
-            background:#ecfdf3;
-            border-left:6px solid #16a34a;
-            border-radius:16px;
-            padding:22px;
-            margin-top:12px;
-            margin-bottom:20px;
-            font-size:17px;
-            line-height:1.6;
-        ">
-            <strong>Executive finding:</strong> {selected['executive_finding']}<br><br>
-            <strong>Recommended investigation area:</strong> {selected['recommended_investigation_area']}<br>
-            <strong>Primary management question:</strong> {selected['primary_management_question']}<br>
-            <strong>Supporting variables:</strong> {selected['supporting_variables']}
-        </div>
+<div style="
+    background:#ecfdf3;
+    border-left:6px solid #16a34a;
+    border-radius:16px;
+    padding:22px;
+    margin-top:12px;
+    margin-bottom:20px;
+    font-size:17px;
+    line-height:1.6;
+">
+    <strong>Executive finding:</strong> {selected['executive_finding']}<br><br>
+    <strong>Recommended investigation area:</strong> {selected['recommended_investigation_area']}<br>
+    <strong>Primary management question:</strong> {selected['primary_management_question']}<br>
+    <strong>Supporting variables:</strong> {selected['supporting_variables']}
+</div>
         """,
         unsafe_allow_html=True,
     )
@@ -758,34 +758,40 @@ def render_executive_intelligence_brief(
     if investigation_df is not None and not investigation_df.empty:
         st.subheader("Visual Investigation Drilldown")
 
-        dimensions = [
-            "Department",
-            "Job Role",
-            "Job Level",
-            "Location",
-            "Manager",
-            "Business Unit",
-            "Team",
+        available_dimensions = [
+            dim for dim in [
+                "Department",
+                "Job Role",
+                "Job Level",
+                "Location",
+                "Manager",
+                "Business Unit",
+                "Team",
+            ]
+            if not investigation_df[
+                (investigation_df["driver_group"].astype(str) == str(selected_priority))
+                & (investigation_df["dimension"].astype(str) == dim)
+            ].empty
         ]
 
-        tabs = st.tabs(dimensions)
+        if not available_dimensions:
+            st.info("No drilldown dimensions are available for this priority.")
+        else:
+            tabs = st.tabs(available_dimensions)
 
-        for tab, dimension in zip(tabs, dimensions):
-            with tab:
-                _render_dimension_chart(
-                    investigation_df=investigation_df,
-                    selected_priority=selected_priority,
-                    dimension=dimension,
-                )
+            for tab, dimension in zip(tabs, available_dimensions):
+                with tab:
+                    _render_dimension_chart(
+                        investigation_df=investigation_df,
+                        selected_priority=selected_priority,
+                        dimension=dimension,
+                    )
 
-                subset = investigation_df[
-                    (investigation_df["driver_group"].astype(str) == str(selected_priority))
-                    & (investigation_df["dimension"].astype(str) == dimension)
-                ].copy()
+                    subset = investigation_df[
+                        (investigation_df["driver_group"].astype(str) == str(selected_priority))
+                        & (investigation_df["dimension"].astype(str) == dimension)
+                    ].copy()
 
-                if subset.empty:
-                    st.info(f"No {dimension} drilldown available.")
-                else:
                     display_cols = [
                         "segment",
                         "employees",
@@ -806,7 +812,9 @@ def render_executive_intelligence_brief(
 
     st.subheader("Executive Assessment")
 
-    st.write(selected["executive_assessment"])
+    st.markdown(
+        selected["executive_assessment"].replace("$", r"\$")
+    )
 
     st.info(selected["limitations"])
 
@@ -823,4 +831,24 @@ def render_executive_intelligence_brief(
             data=investigation_df.to_csv(index=False).encode("utf-8"),
             file_name="hcrl_executive_investigation_drilldown.csv",
             mime="text/csv",
+        )
+
+    with st.expander("Methodology & Enterprise Limitations"):
+        st.write(
+            """
+HCRL Executive Intelligence Brief converts modeled workforce exposure,
+driver evidence, and segment concentration into executive decision-support
+narratives.
+
+The brief identifies where leadership may begin investigation. It does not
+establish causality, prescribe employment decisions, estimate ROI, guarantee
+savings, or replace human management judgment.
+
+Linked exposure is modeled exposure allocated to workforce priority areas
+using prior Action Intelligence and Intervention Economics outputs.
+
+Segment concentration identifies where the modeled exposure is most visible
+across available organizational dimensions such as department, role, and job
+level. Empty dimensions are hidden automatically.
+            """
         )
