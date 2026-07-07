@@ -22,12 +22,13 @@ class ExecutiveBriefReport:
 DOMAIN_LANGUAGE: Dict[str, Dict[str, object]] = {
     "Career Progression": {
         "finding": "Promotion-related workforce signals represent the largest visible management investigation area.",
+        "executive_label": "Career progression and internal mobility",
         "primary_question": "Are promotion and internal mobility pathways aligned with exposed workforce groups?",
         "workflow": [
             "Validate promotion evidence",
-            "Review exposed department",
-            "Compare role tenure",
-            "Assess internal mobility",
+            "Review exposed departments",
+            "Compare tenure and role duration",
+            "Assess internal mobility paths",
             "Prepare leadership findings",
         ],
         "questions": [
@@ -42,9 +43,16 @@ DOMAIN_LANGUAGE: Dict[str, Dict[str, object]] = {
             "Assess whether internal mobility is used before external hiring.",
             "Review career ladders and succession planning for exposed roles.",
         ],
+        "risk_if_ignored": [
+            "Loss of experienced employees.",
+            "Weak internal mobility.",
+            "Higher external hiring dependency.",
+            "Leadership pipeline weakness.",
+        ],
     },
     "Compensation": {
         "finding": "Compensation-related signals indicate a management review area for exposed workforce groups.",
+        "executive_label": "Compensation competitiveness and pay progression",
         "primary_question": "Is compensation aligned with retention-sensitive roles and exposed workforce groups?",
         "workflow": [
             "Validate compensation evidence",
@@ -65,9 +73,16 @@ DOMAIN_LANGUAGE: Dict[str, Dict[str, object]] = {
             "Assess pay compression and salary increase patterns.",
             "Review long-term incentive structures for exposed groups.",
         ],
+        "risk_if_ignored": [
+            "Retention pressure in competitive roles.",
+            "Pay compression concerns.",
+            "Higher replacement-cost exposure.",
+            "Lower perceived reward fairness.",
+        ],
     },
     "Work Environment": {
         "finding": "Employee experience and work-environment signals show a visible management review area.",
+        "executive_label": "Employee experience and work climate",
         "primary_question": "Are employee experience issues concentrated in exposed teams, roles, or departments?",
         "workflow": [
             "Validate experience evidence",
@@ -88,9 +103,16 @@ DOMAIN_LANGUAGE: Dict[str, Dict[str, object]] = {
             "Assess team climate and recognition patterns.",
             "Review overlap with workload or manager signals.",
         ],
+        "risk_if_ignored": [
+            "Lower engagement.",
+            "Reduced team stability.",
+            "Higher voluntary turnover pressure.",
+            "Employee experience deterioration.",
+        ],
     },
     "Manager Stability": {
         "finding": "Manager stability signals indicate a leadership-continuity review area.",
+        "executive_label": "Manager continuity and leadership stability",
         "primary_question": "Are manager relationships or leadership continuity issues concentrated in exposed groups?",
         "workflow": [
             "Validate manager evidence",
@@ -111,9 +133,16 @@ DOMAIN_LANGUAGE: Dict[str, Dict[str, object]] = {
             "Assess leadership support and span of control.",
             "Review manager coaching and team stability.",
         ],
+        "risk_if_ignored": [
+            "Leadership continuity risk.",
+            "Team disruption.",
+            "Lower trust in management.",
+            "Higher retention pressure in affected teams.",
+        ],
     },
     "Workload": {
         "finding": "Workload signals indicate a capacity and staffing review area.",
+        "executive_label": "Workload, overtime, and capacity pressure",
         "primary_question": "Are workload demands concentrated in exposed workforce groups?",
         "workflow": [
             "Validate workload evidence",
@@ -134,9 +163,16 @@ DOMAIN_LANGUAGE: Dict[str, Dict[str, object]] = {
             "Assess scheduling and capacity planning.",
             "Review overlap with work-environment signals.",
         ],
+        "risk_if_ignored": [
+            "Burnout pressure.",
+            "Capacity mismatch.",
+            "Reduced productivity stability.",
+            "Higher dissatisfaction in workload-heavy roles.",
+        ],
     },
     "Travel / Commute Burden": {
         "finding": "Travel and commute signals indicate a flexibility and location review area.",
+        "executive_label": "Travel burden, commute, and flexibility",
         "primary_question": "Are commute, travel, or location requirements contributing to exposed workforce pressure?",
         "workflow": [
             "Validate travel evidence",
@@ -157,9 +193,16 @@ DOMAIN_LANGUAGE: Dict[str, Dict[str, object]] = {
             "Assess role-location alignment.",
             "Review location strategy and hybrid-work feasibility.",
         ],
+        "risk_if_ignored": [
+            "Avoidable employee friction.",
+            "Reduced flexibility competitiveness.",
+            "Retention pressure in location-sensitive roles.",
+            "Higher dissatisfaction in travel-heavy work.",
+        ],
     },
     "Training and Development": {
         "finding": "Training and development signals indicate a skills and mobility review area.",
+        "executive_label": "Training, development, and internal mobility readiness",
         "primary_question": "Are development opportunities aligned with exposed workforce groups?",
         "workflow": [
             "Validate development evidence",
@@ -179,6 +222,12 @@ DOMAIN_LANGUAGE: Dict[str, Dict[str, object]] = {
             "Compare training participation across departments and roles.",
             "Assess skills-development pathways.",
             "Connect training programs to internal mobility.",
+        ],
+        "risk_if_ignored": [
+            "Skill stagnation.",
+            "Lower internal mobility.",
+            "Reduced readiness for future work.",
+            "Higher disengagement among growth-oriented employees.",
         ],
     },
 }
@@ -210,6 +259,10 @@ def _money(value) -> str:
     return f"${_safe_float(value):,.0f}"
 
 
+def _pct(value) -> str:
+    return f"{_safe_float(value) * 100:,.1f}%"
+
+
 def _clean(value) -> str:
     if value is None:
         return "Not available"
@@ -239,6 +292,7 @@ def _domain_config(domain: str) -> Dict[str, object]:
         domain,
         {
             "finding": f"{domain} appears as a workforce investigation area.",
+            "executive_label": domain,
             "primary_question": f"What explains the workforce exposure associated with {domain}?",
             "workflow": [
                 "Validate evidence",
@@ -258,6 +312,12 @@ def _domain_config(domain: str) -> Dict[str, object]:
                 "Compare concentration by department, role, and level.",
                 "Validate findings with HR and business leadership.",
                 "Prepare a management investigation summary.",
+            ],
+            "risk_if_ignored": [
+                "Unresolved workforce exposure.",
+                "Delayed management review.",
+                "Incomplete workforce risk understanding.",
+                "Higher uncertainty in workforce planning.",
             ],
         },
     )
@@ -297,6 +357,26 @@ def _card(title: str, value: str, subtitle: str = "") -> None:
     <div style="font-size:13px;color:#667085;margin-bottom:8px;">{title}</div>
     <div style="font-size:25px;font-weight:750;color:#111827;line-height:1.2;">{value}</div>
     <div style="font-size:13px;color:#667085;margin-top:8px;">{subtitle}</div>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _section_card(title: str, body: str, border_color: str = "#2563eb", bg: str = "#eef6ff") -> None:
+    st.markdown(
+        f"""
+<div style="
+    background:{bg};
+    border-left:6px solid {border_color};
+    border-radius:16px;
+    padding:24px;
+    font-size:17px;
+    line-height:1.65;
+    color:#102a43;
+">
+    <strong>{title}</strong><br><br>
+    {body}
 </div>
         """,
         unsafe_allow_html=True,
@@ -425,10 +505,33 @@ def build_executive_intelligence_brief(
             else "segment concentration is not available from the uploaded data"
         )
 
+        top_department = top_dim.get("Department", "Not available")
+        top_role = top_dim.get("Job Role", "Not available")
+        top_level = top_dim.get("Job Level", "Not available")
+
+        executive_story = (
+            f"{domain} emerged as a visible workforce investigation priority, "
+            f"representing approximately {_money(linked_exposure)} of modeled exposure. "
+            f"The strongest available concentration appears in {top_department}, "
+            f"with role-level concentration around {top_role}. "
+            f"Leadership should validate whether this pattern reflects the workforce issue described by: "
+            f"{config['primary_question']}"
+        )
+
+        executive_assessment = (
+            f"{domain} represents Priority #{_safe_int(action['action_rank'])}. "
+            f"The uploaded workforce data shows {evidence_drivers} supporting evidence signal(s) "
+            f"linked to approximately {_money(linked_exposure)} of modeled workforce exposure. "
+            f"The most visible concentration points are {concentration_sentence}. "
+            f"Leadership should begin investigation in these exposed workforce segments before expanding the review company-wide. "
+            f"This is an investigation priority, not a causal claim or prescribed intervention."
+        )
+
         rows.append(
             {
                 "brief_rank": _safe_int(action["action_rank"]),
                 "workforce_priority": domain,
+                "executive_label": config["executive_label"],
                 "recommended_investigation_area": _clean(action["intervention_area"]),
                 "executive_finding": config["finding"],
                 "primary_management_question": config["primary_question"],
@@ -440,29 +543,16 @@ def build_executive_intelligence_brief(
                 "linked_modeled_exposure": linked_exposure,
                 "evidence_drivers": evidence_drivers,
                 "supporting_variables": _clean(action["supporting_variables"]),
-                "top_department": top_dim.get("Department", "Not available"),
+                "top_department": top_department,
                 "top_department_exposure": exp_dim.get("Department", 0.0),
-                "top_job_role": top_dim.get("Job Role", "Not available"),
+                "top_job_role": top_role,
                 "top_job_role_exposure": exp_dim.get("Job Role", 0.0),
-                "top_job_level": top_dim.get("Job Level", "Not available"),
+                "top_job_level": top_level,
                 "top_job_level_exposure": exp_dim.get("Job Level", 0.0),
                 "top_location": top_dim.get("Location", "Not available"),
                 "concentration_points": " | ".join(points),
-                "executive_story": (
-                    f"{domain} is a visible workforce investigation priority. "
-                    f"The strongest available concentration appears in "
-                    f"{top_dim.get('Department', 'available organizational segments')}, "
-                    f"with role concentration around "
-                    f"{top_dim.get('Job Role', 'available job roles')}. "
-                    f"Leadership should investigate: {config['primary_question']}"
-                ),
-                "executive_assessment": (
-                    f"{domain} represents Priority #{_safe_int(action['action_rank'])}. "
-                    f"The uploaded workforce data shows {evidence_drivers} supporting evidence signal(s) "
-                    f"linked to approximately {_money(linked_exposure)} of modeled workforce exposure. "
-                    f"The most visible concentration points are {concentration_sentence}. "
-                    f"Leadership should begin investigation in these exposed workforce segments before expanding the review company-wide."
-                ),
+                "executive_story": executive_story,
+                "executive_assessment": executive_assessment,
                 "board_summary": (
                     f"{domain}: {_money(linked_exposure)} linked exposure, "
                     f"{evidence_strength} evidence strength, {management_attention}."
@@ -470,6 +560,7 @@ def build_executive_intelligence_brief(
                 "management_questions": " | ".join(config["questions"]),
                 "review_actions": " | ".join(config["focus"]),
                 "investigation_workflow": " | ".join(config["workflow"]),
+                "risk_if_ignored": " | ".join(config["risk_if_ignored"]),
                 "limitations": (
                     "This brief is evidence-aligned decision support. It does not prove causality, "
                     "estimate ROI, guarantee savings, or prescribe automatic employment decisions."
@@ -492,6 +583,136 @@ def build_executive_intelligence_brief(
 
 
 # =====================================================
+# EXECUTIVE INTELLIGENCE DERIVED INSIGHTS
+# =====================================================
+
+def _build_cross_priority_insights(executive_brief_df: pd.DataFrame) -> pd.DataFrame:
+    rows = []
+
+    for dimension, label_col in [
+        ("Department", "top_department"),
+        ("Job Role", "top_job_role"),
+        ("Job Level", "top_job_level"),
+        ("Location", "top_location"),
+    ]:
+        if label_col not in executive_brief_df.columns:
+            continue
+
+        temp = executive_brief_df[
+            executive_brief_df[label_col].notna()
+            & (executive_brief_df[label_col].astype(str) != "Not available")
+        ].copy()
+
+        if temp.empty:
+            continue
+
+        grouped = (
+            temp.groupby(label_col)
+            .agg(
+                priority_count=("workforce_priority", "nunique"),
+                linked_exposure=("linked_modeled_exposure", "sum"),
+                priorities=("workforce_priority", lambda x: " | ".join(sorted(set(map(str, x))))),
+            )
+            .reset_index()
+            .rename(columns={label_col: "segment"})
+        )
+
+        grouped["dimension"] = dimension
+        rows.append(grouped)
+
+    if not rows:
+        return pd.DataFrame()
+
+    out = pd.concat(rows, ignore_index=True)
+    out = out.sort_values(["priority_count", "linked_exposure"], ascending=[False, False])
+    return out
+
+
+def _render_cross_priority_intelligence(executive_brief_df: pd.DataFrame) -> None:
+    insights = _build_cross_priority_insights(executive_brief_df)
+
+    st.subheader("Cross-Priority Intelligence")
+
+    if insights.empty:
+        st.info("No recurring cross-priority concentration was detected from available drilldown dimensions.")
+        return
+
+    top = insights.iloc[0]
+
+    _section_card(
+        "Recurring Organizational Theme",
+        (
+            f"The strongest recurring concentration is <strong>{top['segment']}</strong> "
+            f"within <strong>{top['dimension']}</strong>. It appears across "
+            f"<strong>{int(top['priority_count'])}</strong> workforce priority area(s), "
+            f"with combined linked exposure of <strong>{_money(top['linked_exposure'])}</strong>."
+        ),
+        border_color="#7c3aed",
+        bg="#f5f3ff",
+    )
+
+    display = insights.head(10).copy()
+    display["linked_exposure"] = display["linked_exposure"].apply(_money)
+
+    st.dataframe(
+        display[
+            [
+                "dimension",
+                "segment",
+                "priority_count",
+                "linked_exposure",
+                "priorities",
+            ]
+        ].rename(
+            columns={
+                "dimension": "Dimension",
+                "segment": "Segment",
+                "priority_count": "Priority Count",
+                "linked_exposure": "Combined Linked Exposure",
+                "priorities": "Related Priorities",
+            }
+        ),
+        use_container_width=True,
+    )
+
+
+def _render_executive_recommendations(selected: pd.Series) -> None:
+    st.subheader("Top Executive Recommendations")
+
+    focus_items = _split_pipe(selected["review_actions"])
+    questions = _split_pipe(selected["management_questions"])
+
+    recommendations: List[str] = []
+
+    if focus_items:
+        recommendations.extend(focus_items[:3])
+
+    if questions:
+        recommendations.append(f"Use leadership review to answer: {questions[0]}")
+
+    recommendations.append(
+        "Validate the pattern with HR and business leaders before designing any intervention."
+    )
+
+    for i, item in enumerate(recommendations[:5], start=1):
+        st.markdown(
+            f"""
+<div style="
+    border:1px solid #e5e7eb;
+    border-radius:14px;
+    padding:16px;
+    margin-bottom:10px;
+    background:#ffffff;
+">
+    <div style="font-size:13px;color:#667085;">Recommendation {i}</div>
+    <div style="font-size:16px;font-weight:650;color:#111827;">{item}</div>
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+# =====================================================
 # RENDER HELPERS
 # =====================================================
 
@@ -510,6 +731,7 @@ def _render_priority_chart(executive_brief_df: pd.DataFrame) -> None:
             "linked_modeled_exposure": "Linked Modeled Exposure",
         },
         text="linked_modeled_exposure",
+        hover_data=["evidence_strength", "management_attention"],
     )
 
     fig.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
@@ -619,7 +841,7 @@ def _render_investigation_path(selected: pd.Series) -> None:
 
     nodes = [x for x in nodes if _clean(x) != "Not available"]
 
-    st.subheader("Investigation Path")
+    st.subheader("Highest Exposure Across Organizational Dimensions")
 
     html = "<div style='display:flex;align-items:center;gap:10px;flex-wrap:wrap;'>"
 
@@ -641,6 +863,30 @@ def _render_investigation_path(selected: pd.Series) -> None:
 
     html += "</div>"
     st.markdown(html, unsafe_allow_html=True)
+
+
+def _render_executive_assessment_card(selected: pd.Series) -> None:
+    dept = selected.get("top_department", "Not available")
+    role = selected.get("top_job_role", "Not available")
+    level = selected.get("top_job_level", "Not available")
+
+    body = (
+        f"<strong>{selected['workforce_priority']}</strong> is ranked as "
+        f"<strong>Priority #{int(selected['brief_rank'])}</strong>, with "
+        f"<strong>{_money(selected['linked_modeled_exposure'])}</strong> of linked modeled exposure. "
+        f"The largest visible concentration appears in <strong>{dept}</strong>, "
+        f"with role concentration around <strong>{role}</strong> and job-level concentration around "
+        f"<strong>{level}</strong>. The finding is supported by "
+        f"<strong>{int(selected['evidence_drivers'])}</strong> evidence driver(s): "
+        f"<strong>{selected['supporting_variables']}</strong>."
+    )
+
+    _section_card(
+        "Executive Assessment",
+        body,
+        border_color="#0f766e",
+        bg="#ecfdf5",
+    )
 
 
 # =====================================================
@@ -672,10 +918,39 @@ def render_executive_intelligence_brief(
 
     top = executive_brief_df.iloc[0]
 
-    if report.warnings:
-        with st.expander("Executive Brief Warnings", expanded=False):
-            for warning in report.warnings:
-                st.write(f"- {warning}")
+    # Developer-style warnings are intentionally hidden from the top of the report.
+    # They remain represented in methodology/governance text at the bottom.
+
+    total_exposure = executive_brief_df["linked_modeled_exposure"].sum()
+    priority_areas = len(executive_brief_df)
+    immediate_reviews = executive_brief_df[
+        executive_brief_df["management_attention"].astype(str) == "Immediate Management Review"
+    ].shape[0]
+    total_evidence_drivers = executive_brief_df["evidence_drivers"].sum()
+    visible_segments = (
+        executive_brief_df[["top_department", "top_job_role", "top_job_level"]]
+        .replace("Not available", pd.NA)
+        .stack()
+        .dropna()
+        .nunique()
+    )
+
+    st.subheader("Executive Workforce Dashboard")
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+
+    with c1:
+        _card("Enterprise Exposure", _money(total_exposure), "Total linked modeled exposure")
+    with c2:
+        _card("Priority Areas", str(priority_areas), "Identified workforce domains")
+    with c3:
+        _card("Immediate Reviews", str(immediate_reviews), "Highest attention areas")
+    with c4:
+        _card("Evidence Drivers", str(int(total_evidence_drivers)), "Supporting evidence signals")
+    with c5:
+        _card("Visible Segments", str(int(visible_segments)), "Departments, roles, and levels")
+
+    st.markdown("---")
 
     st.subheader("Board-Level Summary")
 
@@ -683,60 +958,63 @@ def render_executive_intelligence_brief(
 
     with c1:
         _card("Top Priority", top["workforce_priority"], "Highest-ranked investigation area")
-
     with c2:
         _card("Linked Exposure", _money(top["linked_modeled_exposure"]), "Modeled workforce exposure")
-
     with c3:
         _card("Evidence Strength", top["evidence_rating"], top["evidence_strength"])
-
     with c4:
         _card("Management Attention", top["attention_badge"], top["management_attention"])
 
-    st.markdown("---")
-
     st.subheader("Executive Insight")
 
-    st.markdown(
-        f"""
-<div style="
-    background:#eef6ff;
-    border-left:6px solid #2563eb;
-    border-radius:16px;
-    padding:24px;
-    font-size:18px;
-    line-height:1.65;
-    color:#102a43;
-">
-    {top['executive_story']}
-    <br><br>
-    <strong>Board summary:</strong> {top['board_summary']}
-</div>
-        """,
-        unsafe_allow_html=True,
+    insight_body = (
+        f"<strong>{top['workforce_priority']}</strong> is the highest-ranked workforce investigation priority. "
+        f"It represents <strong>{_money(top['linked_modeled_exposure'])}</strong> of linked modeled exposure, "
+        f"with the strongest visible concentration in <strong>{top['top_department']}</strong> and "
+        f"<strong>{top['top_job_role']}</strong>. Leadership should begin by validating this pattern "
+        f"before expanding the review to lower-ranked workforce priorities."
     )
 
-    st.subheader("Top Workforce Priorities")
+    _section_card("Executive Insight", insight_body, border_color="#2563eb", bg="#eef6ff")
+
+    st.subheader("Enterprise Workforce Priorities")
     _render_priority_chart(executive_brief_df)
 
     st.subheader("Executive Decision Matrix")
 
-    matrix_cols = [
-        "brief_rank",
-        "workforce_priority",
-        "recommended_investigation_area",
-        "attention_badge",
-        "evidence_rating",
-        "linked_modeled_exposure",
-        "top_department",
-        "top_job_role",
-        "top_job_level",
-    ]
+    matrix = executive_brief_df[
+        [
+            "brief_rank",
+            "workforce_priority",
+            "recommended_investigation_area",
+            "attention_badge",
+            "evidence_rating",
+            "linked_modeled_exposure",
+            "top_department",
+            "top_job_role",
+            "top_job_level",
+        ]
+    ].copy()
 
-    matrix = executive_brief_df[matrix_cols].copy()
     matrix["linked_modeled_exposure"] = matrix["linked_modeled_exposure"].apply(_money)
 
+    matrix = matrix.rename(
+        columns={
+            "brief_rank": "Priority",
+            "workforce_priority": "Workforce Priority",
+            "recommended_investigation_area": "Investigation Area",
+            "attention_badge": "Attention",
+            "evidence_rating": "Evidence",
+            "linked_modeled_exposure": "Linked Exposure",
+            "top_department": "Top Department",
+            "top_job_role": "Top Job Role",
+            "top_job_level": "Top Job Level",
+        }
+    )
+
     st.dataframe(matrix, use_container_width=True)
+
+    _render_cross_priority_intelligence(executive_brief_df)
 
     selected_priority = st.selectbox(
         "Choose executive priority brief",
@@ -757,26 +1035,7 @@ def render_executive_intelligence_brief(
     c3.metric("Attention", selected["management_attention"])
     c4.metric("Evidence Drivers", int(selected["evidence_drivers"]))
 
-    st.markdown(
-        f"""
-<div style="
-    background:#ecfdf3;
-    border-left:6px solid #16a34a;
-    border-radius:16px;
-    padding:22px;
-    margin-top:12px;
-    margin-bottom:20px;
-    font-size:17px;
-    line-height:1.6;
-">
-    <strong>Executive finding:</strong> {selected['executive_finding']}<br><br>
-    <strong>Recommended investigation area:</strong> {selected['recommended_investigation_area']}<br>
-    <strong>Primary management question:</strong> {selected['primary_management_question']}<br>
-    <strong>Supporting variables:</strong> {selected['supporting_variables']}
-</div>
-        """,
-        unsafe_allow_html=True,
-    )
+    _render_executive_assessment_card(selected)
 
     _render_investigation_path(selected)
 
@@ -788,8 +1047,14 @@ def render_executive_intelligence_brief(
     for action in _split_pipe(selected["review_actions"]):
         st.write(f"- {action}")
 
+    _render_executive_recommendations(selected)
+
     st.subheader("Suggested Investigation Workflow")
     _render_step_flow(_split_pipe(selected["investigation_workflow"]))
+
+    st.subheader("Potential Business Risks if Ignored")
+    for risk in _split_pipe(selected["risk_if_ignored"]):
+        st.write(f"- {risk}")
 
     if investigation_df is not None and not investigation_df.empty:
         st.subheader("Visual Investigation Drilldown")
@@ -824,10 +1089,6 @@ def render_executive_intelligence_brief(
                         dimension=dimension,
                     )
 
-    st.subheader("Executive Assessment")
-    st.write(selected["executive_assessment"])
-    st.info(selected["limitations"])
-
     st.download_button(
         label="Download Executive Intelligence Brief",
         data=executive_brief_df.to_csv(index=False).encode("utf-8"),
@@ -842,4 +1103,5 @@ def render_executive_intelligence_brief(
             file_name="hcrl_executive_investigation_drilldown.csv",
             mime="text/csv",
         )
+
 
