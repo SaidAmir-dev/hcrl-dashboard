@@ -1,26 +1,54 @@
 mechanisms:
-  promotion_delay:
-    label: "Promotion Delay"
-    domain: "Career Progression"
-    evidence_variables:
+
+  M001:
+    name: Promotion Delay
+    domain: Career Progression
+
+    description: >
+      Employees appear to remain in the same role or level for extended periods
+      before advancement opportunities.
+
+    observable_variables:
       - YearsSinceLastPromotion
       - YearsInCurrentRole
-    interpretation: "Employees may be remaining in the same role or level for extended periods before advancement."
 
-  career_stagnation:
-    label: "Career Stagnation"
-    domain: "Career Progression"
-    evidence_variables:
+    business_problem:
+      Slowed internal career progression
+
+    candidate_interventions: []
+
+  M002:
+    name: Career Stagnation
+    domain: Career Progression
+
+    description: >
+      Employees accumulate organizational tenure without proportional
+      advancement in responsibility or level.
+
+    observable_variables:
       - YearsAtCompany
       - YearsInCurrentRole
       - JobLevel
-    interpretation: "Employees may have accumulated tenure without proportional role progression."
 
-  pay_progression_pressure:
-    label: "Pay Progression Pressure"
-    domain: "Compensation"
-    evidence_variables:
+    business_problem:
+      Limited career growth
+
+    candidate_interventions: []
+
+  M003:
+    name: Compensation Progression Pressure
+    domain: Compensation
+
+    description: >
+      Compensation growth patterns may be associated with modeled workforce
+      attrition exposure.
+
+    observable_variables:
       - MonthlyIncome
       - PercentSalaryHike
       - StockOptionLevel
-    interpretation: "Compensation growth or rewards may be associated with modeled attrition exposure."
+
+    business_problem:
+      Compensation competitiveness
+
+    candidate_interventions: []
