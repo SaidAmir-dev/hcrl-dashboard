@@ -1,0 +1,87 @@
+references:
+  - id: griffeth_2000
+    title: "A Meta-Analysis of Antecedents and Correlates of Employee Turnover"
+    authors: "Griffeth, Hom, Gaertner"
+    year: 2000
+    evidence_type: "meta_analysis"
+    relevance:
+      - turnover
+      - job_satisfaction
+      - organizational_commitment
+      - pay
+      - career_progression
+    limitation: "Identifies correlates of turnover, not company-specific causal effects."
+
+  - id: allen_2010
+    title: "Retaining Talent: Replacing Misconceptions with Evidence-Based Strategies"
+    authors: "Allen, Bryant, Vardaman"
+    year: 2010
+    evidence_type: "evidence_review"
+    relevance:
+      - retention
+      - management_practices
+      - career_development
+      - compensation
+      - employee_embeddedness
+    limitation: "Provides evidence-based guidance but interventions still require company validation."
+
+  - id: hom_2017
+    title: "One Hundred Years of Employee Turnover Theory and Research"
+    authors: "Hom, Lee, Shaw, Hausknecht"
+    year: 2017
+    evidence_type: "research_review"
+    relevance:
+      - turnover
+      - retention
+      - job_embeddedness
+      - shocks
+      - withdrawal
+    limitation: "Broad theoretical review; does not prescribe automatic interventions."
+
+  - id: hausknecht_2009
+    title: "Targeted Employee Retention: Performance-Based and Job-Related Differences in Reported Reasons for Staying"
+    authors: "Hausknecht, Rodda, Howard"
+    year: 2009
+    evidence_type: "empirical_study"
+    relevance:
+      - retention
+      - career_opportunities
+      - rewards
+      - job_satisfaction
+      - organizational_commitment
+    limitation: "Reasons for staying differ by workforce group and should be validated locally."
+
+  - id: kuvaas_2016
+    title: "Performance Management and Employee Outcomes"
+    authors: "Kuvaas, Buch, Dysvik"
+    year: 2016
+    evidence_type: "empirical_study"
+    relevance:
+      - performance_management
+      - motivation
+      - employee_outcomes
+    limitation: "Performance practices vary by organizational context."
+
+  - id: boswell_2005
+    title: "The Relationship Between Employee Job Change and Job Satisfaction"
+    authors: "Boswell, Boudreau, Tichy"
+    year: 2005
+    evidence_type: "empirical_study"
+    relevance:
+      - career_progression
+      - job_change
+      - job_satisfaction
+    limitation: "Career movement effects depend on timing, role quality, and employee expectations."
+
+  - id: cotton_tuttle_1986
+    title: "Employee Turnover: A Meta-Analysis and Review with Implications for Research"
+    authors: "Cotton, Tuttle"
+    year: 1986
+    evidence_type: "meta_analysis"
+    relevance:
+      - turnover
+      - pay
+      - satisfaction
+      - tenure
+      - demographics
+    limitation: "Older meta-analysis; useful as foundational evidence, not a modern standalone basis."
