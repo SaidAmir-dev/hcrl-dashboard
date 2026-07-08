@@ -1,0 +1,61 @@
+interventions:
+
+  I001:
+    name: Promotion Timeline Review
+    domain: Career Progression
+    intervention_type: diagnostic_review
+    addresses_mechanisms:
+      - M001
+      - M002
+    recommended_when:
+      - promotion_delay_evidence_present
+      - career_stagnation_evidence_present
+    action_language: >
+      Review promotion timelines across exposed workforce groups.
+    evidence_required:
+      - YearsSinceLastPromotion
+      - YearsInCurrentRole
+      - YearsAtCompany
+      - JobLevel
+    limitations: >
+      This does not prove that promotion delay caused attrition. It identifies
+      where leadership should investigate advancement patterns.
+
+  I002:
+    name: Internal Mobility Review
+    domain: Career Progression
+    intervention_type: diagnostic_review
+    addresses_mechanisms:
+      - M001
+      - M002
+    recommended_when:
+      - career_progression_evidence_present
+    action_language: >
+      Assess whether internal mobility paths are visible, accessible, and used
+      before external hiring.
+    evidence_required:
+      - YearsAtCompany
+      - YearsInCurrentRole
+      - JobLevel
+    limitations: >
+      This is a management review area, not an automatic intervention or
+      employment decision.
+
+  I003:
+    name: Compensation Competitiveness Review
+    domain: Compensation
+    intervention_type: diagnostic_review
+    addresses_mechanisms:
+      - M003
+    recommended_when:
+      - compensation_progression_pressure_evidence_present
+    action_language: >
+      Review compensation progression and competitiveness across exposed
+      workforce groups.
+    evidence_required:
+      - MonthlyIncome
+      - PercentSalaryHike
+      - StockOptionLevel
+    limitations: >
+      This does not estimate pay correction ROI or prescribe compensation
+      changes without company-specific compensation policy data.
