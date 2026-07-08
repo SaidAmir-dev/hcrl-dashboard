@@ -1,0 +1,26 @@
+mechanisms:
+  promotion_delay:
+    label: "Promotion Delay"
+    domain: "Career Progression"
+    evidence_variables:
+      - YearsSinceLastPromotion
+      - YearsInCurrentRole
+    interpretation: "Employees may be remaining in the same role or level for extended periods before advancement."
+
+  career_stagnation:
+    label: "Career Stagnation"
+    domain: "Career Progression"
+    evidence_variables:
+      - YearsAtCompany
+      - YearsInCurrentRole
+      - JobLevel
+    interpretation: "Employees may have accumulated tenure without proportional role progression."
+
+  pay_progression_pressure:
+    label: "Pay Progression Pressure"
+    domain: "Compensation"
+    evidence_variables:
+      - MonthlyIncome
+      - PercentSalaryHike
+      - StockOptionLevel
+    interpretation: "Compensation growth or rewards may be associated with modeled attrition exposure."
