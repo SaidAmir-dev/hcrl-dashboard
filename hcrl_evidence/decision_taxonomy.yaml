@@ -1,0 +1,101 @@
+decision_taxonomy:
+
+  DT001:
+    category: Career Progression
+    executive_question: "How should the company manage advancement, promotion, and internal career movement?"
+    decision_families:
+      - Promotion governance
+      - Career ladder design
+      - Internal mobility
+      - Succession planning
+      - Role progression review
+
+  DT002:
+    category: Compensation
+    executive_question: "How should the company manage pay, rewards, and compensation competitiveness?"
+    decision_families:
+      - Compensation benchmarking
+      - Pay compression review
+      - Merit increase governance
+      - Incentive structure review
+      - Retention compensation review
+
+  DT003:
+    category: Manager Effectiveness
+    executive_question: "How should the company manage leadership quality, manager stability, and team-level retention pressure?"
+    decision_families:
+      - Manager capability review
+      - Leadership coaching
+      - Span of control review
+      - Manager continuity review
+      - Team climate review
+
+  DT004:
+    category: Workload and Capacity
+    executive_question: "How should the company manage workload, overtime, staffing pressure, and operational capacity?"
+    decision_families:
+      - Workload allocation review
+      - Overtime review
+      - Staffing model review
+      - Scheduling review
+      - Capacity planning
+
+  DT005:
+    category: Learning and Development
+    executive_question: "How should the company allocate learning, reskilling, and development resources?"
+    decision_families:
+      - Training prioritization
+      - Reskilling strategy
+      - Upskilling investment
+      - Development pathway review
+      - Skills gap review
+
+  DT006:
+    category: Workforce Planning
+    executive_question: "How should the company plan headcount, hiring, internal movement, and workforce supply?"
+    decision_families:
+      - Hiring strategy
+      - Backfill planning
+      - Workforce supply planning
+      - Internal transfer planning
+      - Critical role protection
+
+  DT007:
+    category: AI Workforce Transformation
+    executive_question: "How should the company decide which roles should be AI-assisted, reskilled, redesigned, or automated?"
+    decision_families:
+      - AI augmentation planning
+      - Task redesign
+      - Automation review
+      - Human-AI workflow redesign
+      - AI readiness prioritization
+
+  DT008:
+    category: Organizational Design
+    executive_question: "How should the company redesign teams, departments, roles, and reporting structures?"
+    decision_families:
+      - Role redesign
+      - Team structure review
+      - Department restructuring
+      - Operating model review
+      - Reporting-line review
+
+  DT009:
+    category: Retention Strategy
+    executive_question: "How should the company protect high-value workforce segments from avoidable loss?"
+    decision_families:
+      - Retention risk review
+      - Critical talent protection
+      - Stay interview targeting
+      - Employee value proposition review
+      - Retention portfolio design
+
+  DT010:
+    category: Location and Flexibility
+    executive_question: "How should the company manage location, remote work, commute burden, and flexibility?"
+    decision_families:
+      - Remote work policy review
+      - Location strategy
+      - Commute burden review
+      - Travel requirement review
+      - Hybrid workforce planning
