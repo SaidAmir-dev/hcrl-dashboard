@@ -1,0 +1,61 @@
+executive_objectives:
+
+  EO001:
+    name: Reduce Voluntary Attrition
+
+    description: >
+      Prioritize organizational decisions that are expected to reduce
+      avoidable voluntary workforce loss.
+
+    primary_domains:
+      - Career Progression
+      - Compensation
+      - Manager Effectiveness
+      - Work Environment
+
+  EO002:
+    name: Prepare Workforce for AI
+
+    description: >
+      Prioritize workforce transformation decisions supporting AI adoption,
+      augmentation, reskilling and automation.
+
+    primary_domains:
+      - AI Workforce Transformation
+      - Learning and Development
+      - Organizational Design
+
+  EO003:
+    name: Improve Internal Mobility
+
+    description: >
+      Increase movement of employees into internal opportunities before
+      external hiring.
+
+    primary_domains:
+      - Career Progression
+      - Workforce Planning
+
+  EO004:
+    name: Reduce Workforce Cost
+
+    description: >
+      Improve workforce efficiency while protecting critical organizational
+      capability.
+
+    primary_domains:
+      - Workforce Planning
+      - Organizational Design
+      - AI Workforce Transformation
+
+  EO005:
+    name: Protect Critical Talent
+
+    description: >
+      Prioritize workforce decisions that reduce expected loss of strategically
+      important employees.
+
+    primary_domains:
+      - Retention Strategy
+      - Compensation
+      - Career Progression
