@@ -5,6 +5,10 @@ import pandas as pd
 
 from hcrl_schema import standardize_workforce_data
 from hcrl_onet_mapper import map_to_onet
+from hcrl_decision_intelligence_orchestrator import (
+    build_decision_intelligence_outputs,
+)
+from hcrl_objective_engine import list_objectives
 from hcrl_executive_intelligence_brief_section import render_executive_intelligence_brief
 from hcrl_executive_intelligence_brief_engine import (
     build_executive_intelligence_brief,
@@ -669,6 +673,55 @@ else:
         mime="text/csv",
     )
 
+
+# =====================================================
+# 13.5 DRIVER RECOMMENDATION INTELLIGENCE
+# =====================================================
+
+st.header("13.5 Driver Recommendation Intelligence")
+
+driver_recommendation_table = pd.DataFrame()
+
+if "driver_table" in locals() and driver_table is not None and not driver_table.empty:
+
+    driver_recommendation_table, driver_recommendation_report = build_driver_recommendations(
+        driver_table
+    )
+
+    if driver_recommendation_report.errors:
+        st.error("Driver recommendation errors:")
+        for error in driver_recommendation_report.errors:
+            st.write(error)
+
+    else:
+        st.metric(
+            "Driver Recommendations Generated",
+            driver_recommendation_report.recommendations_generated,
+        )
+
+        if driver_recommendation_report.warnings:
+            st.warning("Driver recommendation warnings:")
+            for warning in driver_recommendation_report.warnings:
+                st.write(f"- {warning}")
+
+        st.subheader("Evidence-Based Management Hypotheses")
+
+        st.dataframe(
+            driver_recommendation_table,
+            use_container_width=True,
+        )
+
+        st.download_button(
+            label="Download Driver Recommendation Table",
+            data=driver_recommendation_table.to_csv(index=False).encode("utf-8"),
+            file_name="hcrl_driver_recommendations.csv",
+            mime="text/csv",
+        )
+
+else:
+    st.info("Attrition Driver Intelligence must run before Driver Recommendation Intelligence.")
+
+
 # =====================================================
 # 14. INTERVENTION INTELLIGENCE
 # =====================================================
@@ -1007,11 +1060,20 @@ else:
 # 18. EXECUTIVE INTELLIGENCE BRIEF
 # =====================================================
 
-render_executive_intelligence_brief(
-    action_df=action_df,
-    investigation_df=investigation_df,
-    workforce_df=df,
-)
+st.header("18. Executive Intelligence Brief")
+
+if (
+    "action_df" in locals()
+    and action_df is not None
+    and not action_df.empty
+):
+    render_executive_intelligence_brief(
+        action_df=action_df,
+        investigation_df=investigation_df if "investigation_df" in locals() else None,
+        workforce_df=df,
+    )
+else:
+    st.info("Workforce Action Intelligence must run before Executive Intelligence Brief.")
 
 with st.expander("Methodology & Enterprise Limitations", expanded=False):
 
@@ -1087,3 +1149,307 @@ Current enterprise limitations include:
         "It does not establish causality, estimate financial ROI, recommend employee-level actions, "
         "or automate employment decisions."
     )
+
+
+# =====================================================
+# 19. EVIDENCE-BASED DECISION INTELLIGENCE
+# =====================================================
+
+st.header("19. Evidence-Based Decision Intelligence")
+
+st.write(
+    "This section converts HCRL diagnosis outputs into executive decision candidates, "
+    "then ranks them using evidence ordering rather than arbitrary weights. "
+    "It does not estimate causal intervention effects or guaranteed ROI."
+)
+
+objective_options = list_objectives()
+
+objective_key = st.selectbox(
+    "Select executive objective",
+    options=[objective.key for objective in objective_options],
+    format_func=lambda key: next(
+        objective.name for objective in objective_options if objective.key == key
+    ),
+    key="decision_intelligence_objective",
+)
+
+selected_objective = next(
+    objective for objective in objective_options if objective.key == objective_key
+)
+
+st.info(
+    f"Objective selected: **{selected_objective.name}** — "
+    f"{selected_objective.description}"
+)
+
+decision_driver_input = pd.DataFrame()
+
+if (
+    "driver_recommendation_table" in locals()
+    and driver_recommendation_table is not None
+    and not driver_recommendation_table.empty
+):
+    decision_driver_input = driver_recommendation_table.copy()
+
+    if (
+        "action_df" in locals()
+        and action_df is not None
+        and not action_df.empty
+        and "driver_group" in action_df.columns
+        and "exposure_linked_to_intervention_area" in action_df.columns
+    ):
+        exposure_lookup = action_df[
+            [
+                "driver_group",
+                "exposure_linked_to_intervention_area",
+            ]
+        ].drop_duplicates("driver_group")
+
+        decision_driver_input = decision_driver_input.merge(
+            exposure_lookup,
+            on="driver_group",
+            how="left",
+        )
+
+        decision_driver_input["linked_modeled_exposure"] = pd.to_numeric(
+            decision_driver_input["exposure_linked_to_intervention_area"],
+            errors="coerce",
+        ).fillna(0.0)
+
+    elif (
+        "intervention_economics_table" in locals()
+        and intervention_economics_table is not None
+        and not intervention_economics_table.empty
+        and "driver_group" in intervention_economics_table.columns
+        and "exposure_linked_to_intervention_area" in intervention_economics_table.columns
+    ):
+        exposure_lookup = intervention_economics_table[
+            [
+                "driver_group",
+                "exposure_linked_to_intervention_area",
+            ]
+        ].drop_duplicates("driver_group")
+
+        decision_driver_input = decision_driver_input.merge(
+            exposure_lookup,
+            on="driver_group",
+            how="left",
+        )
+
+        decision_driver_input["linked_modeled_exposure"] = pd.to_numeric(
+            decision_driver_input["exposure_linked_to_intervention_area"],
+            errors="coerce",
+        ).fillna(0.0)
+
+    else:
+        decision_driver_input["linked_modeled_exposure"] = 0.0
+
+else:
+    st.info(
+        "Driver Recommendation Intelligence must run before Evidence-Based Decision Intelligence."
+    )
+
+if not decision_driver_input.empty:
+
+    decision_outputs, decision_report = build_decision_intelligence_outputs(
+        driver_evidence_df=decision_driver_input,
+        objective_key=objective_key,
+    )
+
+    if decision_report.errors:
+        st.error("Decision Intelligence errors:")
+        for error in decision_report.errors:
+            st.write(f"- {error}")
+
+    else:
+        if decision_report.warnings:
+            st.warning("Decision Intelligence warnings:")
+            for warning in decision_report.warnings:
+                st.write(f"- {warning}")
+
+        ranked_decisions = decision_outputs.get(
+            "ranked_decisions",
+            pd.DataFrame(),
+        )
+
+        strategy_portfolio = decision_outputs.get(
+            "strategy_portfolio",
+            pd.DataFrame(),
+        )
+
+        if not ranked_decisions.empty:
+
+            top_decision = ranked_decisions.iloc[0]
+
+            st.subheader("Top Evidence-Supported Executive Decision")
+
+            c1, c2, c3, c4 = st.columns(4)
+
+            c1.metric(
+                "Top Decision",
+                top_decision["decision_name"],
+            )
+
+            c2.metric(
+                "Workforce Domain",
+                top_decision["driver_group"],
+            )
+
+            c3.metric(
+                "Evidence Links",
+                int(top_decision["company_evidence_link_count"]),
+            )
+
+            c4.metric(
+                "Linked Exposure",
+                f"${top_decision['linked_modeled_exposure']:,.0f}",
+            )
+
+            st.success(
+                f"""
+                **Recommended executive decision:** {top_decision['decision_name']}
+
+                **Decision question:** {top_decision['decision_question']}
+
+                **Executive action:** {top_decision['executive_action_language']}
+
+                **Why this ranked first:** {top_decision['evidence_explanation']}
+
+                **Ranking basis:** {top_decision['ranking_basis']}
+                """
+            )
+
+            st.info(
+                "This is the best-supported executive decision under the selected objective "
+                "based on company evidence alignment and modeled exposure. "
+                "It is not a causal claim, ROI estimate, or automatic personnel decision."
+            )
+
+        st.subheader("Ranked Executive Decisions")
+
+        if ranked_decisions.empty:
+            st.info("No ranked decisions were generated.")
+        else:
+            ranked_display_cols = [
+                col for col in [
+                    "decision_rank",
+                    "objective_name",
+                    "decision_name",
+                    "decision_family",
+                    "driver_group",
+                    "decision_readiness",
+                    "company_evidence_link_count",
+                    "matched_company_evidence_variables",
+                    "linked_modeled_exposure",
+                    "executive_action_language",
+                    "evidence_explanation",
+                    "ranking_basis",
+                ]
+                if col in ranked_decisions.columns
+            ]
+
+            st.dataframe(
+                ranked_decisions[ranked_display_cols],
+                use_container_width=True,
+            )
+
+            st.download_button(
+                label="Download Ranked Executive Decisions",
+                data=ranked_decisions.to_csv(index=False).encode("utf-8"),
+                file_name="hcrl_ranked_executive_decisions.csv",
+                mime="text/csv",
+            )
+
+        st.subheader("Executive Strategy Portfolio")
+
+        if strategy_portfolio.empty:
+            st.info("No strategy portfolio was generated.")
+        else:
+            strategy_display_cols = [
+                col for col in [
+                    "strategy_id",
+                    "strategy_name",
+                    "objective_name",
+                    "strategy_description",
+                    "included_decisions",
+                    "included_domains",
+                    "linked_modeled_exposure",
+                    "company_evidence_links",
+                    "executive_actions",
+                    "limitations",
+                ]
+                if col in strategy_portfolio.columns
+            ]
+
+            st.dataframe(
+                strategy_portfolio[strategy_display_cols],
+                use_container_width=True,
+            )
+
+            top_strategy = strategy_portfolio.iloc[0]
+
+            st.subheader("Best-Supported Strategy")
+
+            st.success(
+                f"""
+                **Strategy:** {top_strategy['strategy_name']}
+
+                **Objective:** {top_strategy['objective_name']}
+
+                **Why this strategy:** {top_strategy['strategy_description']}
+
+                **Included decisions:** {top_strategy['included_decisions']}
+
+                **Executive actions:** {top_strategy['executive_actions']}
+
+                **Limitations:** {top_strategy['limitations']}
+                """
+            )
+
+            st.download_button(
+                label="Download Strategy Portfolio",
+                data=strategy_portfolio.to_csv(index=False).encode("utf-8"),
+                file_name="hcrl_strategy_portfolio.csv",
+                mime="text/csv",
+            )
+
+        with st.expander("Decision Intelligence Methodology", expanded=False):
+
+            st.markdown("""
+### What this section does
+
+Evidence-Based Decision Intelligence converts HCRL diagnostic outputs into executive decision candidates.
+
+It answers:
+
+**Given this company's workforce evidence and selected executive objective, which executive decisions are most strongly supported by the available evidence?**
+
+---
+
+### Ranking method
+
+Decisions are ranked lexicographically using:
+
+1. Objective alignment
+2. Number of matched company evidence variables
+3. Linked modeled economic exposure
+4. Number of evidence drivers
+
+No weighted score is used.
+
+---
+
+### What this section does not do
+
+It does not:
+
+- prove causality
+- estimate guaranteed ROI
+- claim an intervention will work
+- recommend firing employees
+- automate employment decisions
+
+Where intervention effects are unknown, HCRL presents evidence-supported decisions rather than unsupported prescriptions.
+            """)
+
